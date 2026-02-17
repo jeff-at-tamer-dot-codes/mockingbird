@@ -117,7 +117,5 @@ def _beta_reduce(body: Expr, arg: Expr) -> Expr:
 ##
 
 def step(expr: Expr) -> Expr | None:
-  result = expr.beta_step()
-  if result is not None: return result
-  return expr.eta_step()
+  return expr.beta_step() or expr.eta_step()
 ##
