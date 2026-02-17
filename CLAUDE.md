@@ -4,6 +4,7 @@ A Python 3.14 project for manipulating untyped lambda calculus expressions.
 
 ## Code Style
 
+- Wrap long lines at 120 characters.
 - Use **two spaces** for indentation (not four).
 - Use **one blank line** between module-level definitions, never two.
 - Close every indented block with a line containing only `##`.
@@ -12,6 +13,12 @@ A Python 3.14 project for manipulating untyped lambda calculus expressions.
 if foo:
   bar()
 ##
+```
+
+- If an indented block consists solely of `break`, `continue`, `return`, or `return None`, it should be moved to the end of the previous line. In these cases, the trailing `##` is omitted.
+
+```python
+if foo: return None
 ```
 
 - Always use **type hints**.
