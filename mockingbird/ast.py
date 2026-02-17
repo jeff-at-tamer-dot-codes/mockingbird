@@ -1,4 +1,5 @@
 class Var:
+
   def __init__(self, index: int) -> None:
     self.index = index
   ##
@@ -8,8 +9,8 @@ class Var:
   ##
 ##
 
-
 class Func:
+
   def __init__(self, body: Expr) -> None:
     self.body = body
   ##
@@ -19,8 +20,8 @@ class Func:
   ##
 ##
 
-
 class Appl:
+
   def __init__(self, func: Expr, arg: Expr) -> None:
     self.func = func
     self.arg = arg
@@ -32,6 +33,5 @@ class Appl:
     return f"{left} {right}"
   ##
 ##
-
 
 type Expr = Var | Func | Appl

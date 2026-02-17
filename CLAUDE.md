@@ -5,6 +5,7 @@ A Python 3.14 project for manipulating untyped lambda calculus expressions.
 ## Code Style
 
 - Use **two spaces** for indentation (not four).
+- Use **one blank line** between module-level definitions, never two.
 - Close every indented block with a line containing only `##`.
 
 ```python
