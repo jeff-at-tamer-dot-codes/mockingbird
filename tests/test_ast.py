@@ -281,6 +281,12 @@ def test_eta_in_appl():
   assert expr.eta_step() == Appl(Var(0), Var(5))
 ##
 
+def test_eta_in_appl_arg():
+  # x (λ 1 0) — eta in arg position
+  expr = Appl(Var(0), Func(Appl(Var(1), Var(0))))
+  assert expr.eta_step() == Appl(Var(0), Var(0))
+##
+
 # --- step tests ---
 
 def test_step_prefers_beta():
@@ -320,11 +326,12 @@ def test_skk_reduces_to_identity():
   skk = Appl(Appl(s, k), k)
   # Reduce until stable (should reach λ 0)
   expr = skk
-  for _ in range(20):
+  for _ in range(4):
     result = step(expr)
-    if result is None: break
+    assert result is not None
     expr = result
   ##
+  assert step(expr) is None
   assert expr == Func(Var(0))
 ##
 
@@ -334,11 +341,12 @@ def test_church_numeral_application():
   # Apply 2 to f (free var 0)
   expr = Appl(Appl(two, Var(0)), Var(1))
   # Reduce until stable
-  for _ in range(20):
+  for _ in range(2):
     result = step(expr)
-    if result is None: break
+    assert result is not None
     expr = result
   ##
+  assert step(expr) is None
   # Should be f (f x) = 0 (0 1)
   assert expr == Appl(Var(0), Appl(Var(0), Var(1)))
 ##

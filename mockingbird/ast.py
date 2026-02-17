@@ -22,9 +22,13 @@ class Var:
     return self.index == index
   ##
 
-  def beta_step(self) -> Expr | None: return None
+  def beta_step(self) -> Expr | None:
+    return None
+  ##
 
-  def eta_step(self) -> Expr | None: return None
+  def eta_step(self) -> Expr | None:
+    return None
+  ##
 ##
 
 @dataclass(frozen=True, slots=True)

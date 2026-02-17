@@ -15,7 +15,7 @@ if foo:
 ##
 ```
 
-- If an indented block consists solely of `break`, `continue`, `return`, or `return None`, it should be moved to the end of the previous line. In these cases, the trailing `##` is omitted.
+- If an indented block consists solely of a single line, e.g. `break`, `continue`, `pass`, `return`, etc., then it should be moved to the end of the previous line. In these cases, the trailing `##` is omitted. This rule does not apply for `class` & `def` statements, which should always be multi-line.
 
 ```python
 if foo: return None
