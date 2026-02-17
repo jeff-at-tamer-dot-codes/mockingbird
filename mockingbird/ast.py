@@ -1,31 +1,27 @@
-class Var:
+from dataclasses import dataclass
 
-  def __init__(self, index: int) -> None:
-    self.index = index
-  ##
+@dataclass(frozen=True, slots=True)
+class Var:
+  index: int
 
   def __str__(self) -> str:
     return str(self.index)
   ##
 ##
 
+@dataclass(frozen=True, slots=True)
 class Func:
-
-  def __init__(self, body: Expr) -> None:
-    self.body = body
-  ##
+  body: Expr
 
   def __str__(self) -> str:
     return f"λ {self.body}"
   ##
 ##
 
+@dataclass(frozen=True, slots=True)
 class Appl:
-
-  def __init__(self, func: Expr, arg: Expr) -> None:
-    self.func = func
-    self.arg = arg
-  ##
+  func: Expr
+  arg: Expr
 
   def __str__(self) -> str:
     left = f"({self.func})" if isinstance(self.func, Func) else self.func

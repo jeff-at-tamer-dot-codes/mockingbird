@@ -44,3 +44,25 @@ def test_y_combinator():
   y = Func(Appl(inner, inner))
   assert str(y) == "λ (λ 1 (0 0)) (λ 1 (0 0))"
 ##
+
+def test_var_equality():
+  assert Var(0) == Var(0)
+  assert Var(1) != Var(2)
+##
+
+def test_func_equality():
+  assert Func(Var(0)) == Func(Var(0))
+  assert Func(Var(0)) != Func(Var(1))
+##
+
+def test_appl_equality():
+  assert Appl(Var(0), Var(1)) == Appl(Var(0), Var(1))
+  assert Appl(Var(0), Var(1)) != Appl(Var(0), Var(2))
+##
+
+def test_nested_equality():
+  a = Func(Appl(Var(1), Appl(Var(0), Var(0))))
+  b = Func(Appl(Var(1), Appl(Var(0), Var(0))))
+  assert a == b
+  assert Appl(a, a) == Appl(b, b)
+##
