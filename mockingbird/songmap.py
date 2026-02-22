@@ -153,13 +153,13 @@ def _measure(expr: Expr, style: Style) -> _Size:
   g = style.grid
   pad = style.box_padding
   if isinstance(expr, Var):
-    return _Size(g, g)
+    return _Size(0, g)
   ##
   if isinstance(expr, Func):
     body = _measure(expr.body, style)
-    # ear column + padding + body + padding + throat column
+    ear_row = g if body.height > g else 0
     w = g + pad + body.width + pad + g
-    h = pad + body.height + pad
+    h = pad + ear_row + body.height + pad
     return _Size(w, h)
   ##
   if isinstance(expr, Appl):
@@ -200,28 +200,30 @@ def _place(
   g = style.grid
   pad = style.box_padding
   if isinstance(expr, Var):
-    # A variable reference — record its position for pipe routing
-    out = Point(x + g, y + g / 2)
-    entry = Point(x, y + g / 2)
+    # A variable reference — just a connection point, zero width
+    pt = Point(x, y + g / 2)
     if expr.index < depth:
       binder = depth - 1 - expr.index
-      builder.var_positions.setdefault(binder, []).append(entry)
+      builder.var_positions.setdefault(binder, []).append(pt)
     else:
       free_idx = expr.index - depth
-      builder.free_var_positions.setdefault(free_idx, []).append(entry)
+      builder.free_var_positions.setdefault(free_idx, []).append(pt)
     ##
-    return out
+    return pt
   ##
   if isinstance(expr, Func):
     size = _measure(expr, style)
+    body_size = _measure(expr.body, style)
+    ear_row = g if body_size.height > g else 0
     rect = Rect(x, y, size.width, size.height)
-    ear = Point(x, y + size.height / 2)
-    throat = Point(x + size.width, y + size.height / 2)
+    ear_y = y + pad + g / 2
+    ear = Point(x, ear_y)
+    throat = Point(x + size.width, ear_y)
     builder.boxes.append(LBox(rect, ear, throat, depth))
     builder.ear_positions[depth] = ear
-    # Place body inside the box
+    # Place body below the ear row
     body_x = x + g + pad
-    body_y = y + pad
+    body_y = y + pad + ear_row
     body_out = _place(expr.body, body_x, body_y, style, depth + 1, builder)
     # Pipe from body output to throat
     builder.pipes.append(LPipe((body_out, throat)))
