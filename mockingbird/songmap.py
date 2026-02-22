@@ -72,21 +72,14 @@ def _body_stats(expr: Expr) -> tuple[int, int]:
   return (fv + av, max(fd, ad) + 1)
 ##
 
-def _layout_general(body: Expr, s: Style) -> Layout:
+def _layout_body_in_box(
+    body: Expr, ear: Point, throat: Point,
+    box_x: float, box_y: float, box_w: float, box_h: float,
+    s: Style,
+) -> tuple[list[LPipe], list[LApplicator]]:
   num_vars, depth = _body_stats(body)
   num_cols = depth + 2
   r = s.ear_radius
-  margin = r
-  box_w = 2 * num_cols * s.grid
-  box_h = (num_vars + 1) * s.grid
-  total_w = box_w + 2 * margin
-  total_h = box_h + 2 * margin
-  box_x = margin
-  box_y = margin
-  ear_y = box_y + num_vars * box_h / (num_vars + 1)
-  ear = Point(box_x, ear_y)
-  throat = Point(box_x + box_w, ear_y)
-  box = LBox(rect=Rect(box_x, box_y, box_w, box_h), ear=ear, throat=throat)
   def col_x(i: int) -> float:
     return box_x + i * box_w / num_cols
   ##
@@ -137,6 +130,25 @@ def _layout_general(body: Expr, s: Style) -> Layout:
   else:
     pipes.append(LPipe(points=(result.out_port, throat)))
   ##
+  return (pipes, applicators)
+##
+
+def _layout_general(body: Expr, s: Style) -> Layout:
+  num_vars, depth = _body_stats(body)
+  num_cols = depth + 2
+  r = s.ear_radius
+  margin = r
+  box_w = 2 * num_cols * s.grid
+  box_h = (num_vars + 1) * s.grid
+  total_w = box_w + 2 * margin
+  total_h = box_h + 2 * margin
+  box_x = margin
+  box_y = margin
+  ear_y = box_y + num_vars * box_h / (num_vars + 1)
+  ear = Point(box_x, ear_y)
+  throat = Point(box_x + box_w, ear_y)
+  box = LBox(rect=Rect(box_x, box_y, box_w, box_h), ear=ear, throat=throat)
+  pipes, applicators = _layout_body_in_box(body, ear, throat, box_x, box_y, box_w, box_h, s)
   return Layout(
     width=total_w, height=total_h, boxes=(box,),
     pipes=tuple(pipes), applicators=tuple(applicators),
@@ -191,6 +203,54 @@ def _layout_nested_var(depth: int, var_index: int, s: Style) -> Layout:
   )
 ##
 
+def _layout_nested_body(depth: int, body: Expr, s: Style) -> Layout:
+  g = s.grid
+  r = s.ear_radius
+  num_vars, body_depth = _body_stats(body)
+  num_cols = body_depth + 2
+  inner_w = 2 * num_cols * g
+  inner_h = (num_vars + 1) * g
+  N = depth
+  gap_w = 2 * g
+  outer_w = inner_w + 2 * (N - 1) * gap_w
+  outer_h = inner_h * (3 * N - 1) / (N + 1)
+  bx = r
+  by = r
+  total_w = outer_w + 2 * bx
+  total_h = outer_h + 2 * by
+  boxes: list[LBox] = []
+  for i in range(N):
+    w_i = inner_w + 2 * (N - 1 - i) * gap_w
+    x_i = bx + i * gap_w
+    top_i = by + outer_h * i / (3 * N - 1)
+    h_i = outer_h * (3 * N - 1 - 2 * i) / (3 * N - 1)
+    ety = by + outer_h * (N + i) / (3 * N - 1)
+    ear = Point(x_i, ety)
+    throat = Point(x_i + w_i, ety)
+    boxes.append(LBox(rect=Rect(x_i, top_i, w_i, h_i), ear=ear, throat=throat))
+  ##
+  innermost = boxes[N - 1]
+  body_pipes, applicators = _layout_body_in_box(
+    body, innermost.ear, innermost.throat,
+    innermost.rect.x, innermost.rect.y, innermost.rect.width, innermost.rect.height, s,
+  )
+  pipes: list[LPipe] = list(body_pipes)
+  for i in reversed(range(N - 1)):
+    mid_x = (boxes[i + 1].throat.x + boxes[i].throat.x) / 2
+    pipes.append(LPipe(points=(
+      boxes[i + 1].throat,
+      Point(mid_x, boxes[i + 1].throat.y),
+      Point(mid_x, boxes[i].throat.y),
+      boxes[i].throat,
+    )))
+  ##
+  return Layout(
+    width=total_w, height=total_h,
+    boxes=tuple(boxes), pipes=tuple(pipes),
+    applicators=tuple(applicators),
+  )
+##
+
 def layout(expr: Expr, style: Style | None = None) -> Layout:
   if not isinstance(expr, Func):
     raise NotImplementedError(f"layout() only supports Func expressions, got: {expr}")
@@ -204,6 +264,9 @@ def layout(expr: Expr, style: Style | None = None) -> Layout:
   ##
   if depth >= 2 and isinstance(inner, Var) and 0 <= inner.index < depth:
     return _layout_nested_var(depth, inner.index, s)
+  ##
+  if depth >= 2 and _is_single_lambda_body(inner):
+    return _layout_nested_body(depth, inner, s)
   ##
   if _is_single_lambda_body(body):
     return _layout_general(body, s)

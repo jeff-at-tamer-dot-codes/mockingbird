@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 import pytest
 from mockingbird.ast import Var, Func, Appl
-from mockingbird.songmap import layout, render
+from mockingbird.songmap import layout, render, Point
 
 IDENTITY = Func(Var(0))
 MOCKINGBIRD = Func(Appl(Var(0), Var(0)))
@@ -10,6 +10,7 @@ SELF_APPLY_LEFT = Func(Appl(Appl(Var(0), Var(0)), Var(0)))
 SELF_APPLY_RIGHT = Func(Appl(Var(0), Appl(Var(0), Var(0))))
 KITE = Func(Func(Var(0)))
 KESTREL = Func(Func(Var(1)))
+NESTED_MOCKINGBIRD = Func(Func(Appl(Var(0), Var(0))))
 TRIPLE_VAR0 = Func(Func(Func(Var(0))))
 TRIPLE_VAR1 = Func(Func(Func(Var(1))))
 TRIPLE_VAR2 = Func(Func(Func(Var(2))))
@@ -346,6 +347,123 @@ def test_double_mockingbird_svg_has_circles():
   root = ET.fromstring(svg)
   circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
   assert len(circles) == 3
+##
+
+# --- Nested Mockingbird (λλ 0 0) layout tests ---
+
+def test_nested_mockingbird_layout_structure():
+  lo = layout(NESTED_MOCKINGBIRD)
+  assert len(lo.boxes) == 2
+  assert len(lo.pipes) == 4
+  assert len(lo.applicators) == 1
+##
+
+def test_nested_mockingbird_canvas_dimensions():
+  lo = layout(NESTED_MOCKINGBIRD)
+  assert lo.width == 216
+  assert lo.height == 116
+##
+
+def test_nested_mockingbird_outer_box():
+  lo = layout(NESTED_MOCKINGBIRD)
+  box = lo.boxes[0]
+  assert box.rect.x == 8
+  assert box.rect.y == 8
+  assert box.rect.width == 200
+  assert box.rect.height == 100
+##
+
+def test_nested_mockingbird_inner_box():
+  lo = layout(NESTED_MOCKINGBIRD)
+  inner = lo.boxes[1]
+  assert inner.rect.x == 48
+  assert inner.rect.y == 28
+  assert inner.rect.width == 120
+  assert inner.rect.height == 60
+##
+
+def test_nested_mockingbird_inner_nested_in_outer():
+  lo = layout(NESTED_MOCKINGBIRD)
+  outer = lo.boxes[0]
+  inner = lo.boxes[1]
+  assert inner.rect.x > outer.rect.x
+  assert inner.rect.y > outer.rect.y
+  assert inner.rect.x + inner.rect.width < outer.rect.x + outer.rect.width
+  assert inner.rect.y + inner.rect.height < outer.rect.y + outer.rect.height
+##
+
+def test_nested_mockingbird_outer_ear_throat():
+  lo = layout(NESTED_MOCKINGBIRD)
+  box = lo.boxes[0]
+  assert box.ear == Point(8, 48)
+  assert box.throat == Point(208, 48)
+##
+
+def test_nested_mockingbird_inner_ear_throat():
+  lo = layout(NESTED_MOCKINGBIRD)
+  inner = lo.boxes[1]
+  assert inner.ear == Point(48, 68)
+  assert inner.throat == Point(168, 68)
+##
+
+def test_nested_mockingbird_applicator():
+  lo = layout(NESTED_MOCKINGBIRD)
+  appl = lo.applicators[0]
+  assert appl.center == Point(128, 68)
+  assert appl.func_port == Point(128, 60)
+  assert appl.arg_port == Point(120, 68)
+  assert appl.out_port == Point(136, 68)
+##
+
+def test_nested_mockingbird_func_pipe():
+  lo = layout(NESTED_MOCKINGBIRD)
+  pipe = lo.pipes[0]
+  assert pipe.points[0] == lo.boxes[1].ear
+  assert pipe.points[-1] == lo.applicators[0].func_port
+  assert len(pipe.points) == 4
+##
+
+def test_nested_mockingbird_arg_pipe():
+  lo = layout(NESTED_MOCKINGBIRD)
+  pipe = lo.pipes[1]
+  assert pipe.points[0] == lo.boxes[1].ear
+  assert pipe.points[-1] == lo.applicators[0].arg_port
+  assert len(pipe.points) == 3
+##
+
+def test_nested_mockingbird_out_pipe():
+  lo = layout(NESTED_MOCKINGBIRD)
+  pipe = lo.pipes[2]
+  assert pipe.points[0] == lo.applicators[0].out_port
+  assert pipe.points[-1] == lo.boxes[1].throat
+  assert len(pipe.points) == 2
+##
+
+def test_nested_mockingbird_throat_pipe():
+  lo = layout(NESTED_MOCKINGBIRD)
+  pipe = lo.pipes[3]
+  assert pipe.points[0] == lo.boxes[1].throat
+  assert pipe.points[-1] == lo.boxes[0].throat
+  assert len(pipe.points) == 4
+##
+
+def test_nested_mockingbird_svg_valid_xml():
+  svg = render(NESTED_MOCKINGBIRD)
+  ET.fromstring(svg)
+##
+
+def test_nested_mockingbird_svg_elements():
+  svg = render(NESTED_MOCKINGBIRD)
+  root = ET.fromstring(svg)
+  ns = "{http://www.w3.org/2000/svg}"
+  rects = root.findall(f".//{ns}rect")
+  polylines = root.findall(f".//{ns}polyline")
+  paths = root.findall(f".//{ns}path")
+  circles = root.findall(f".//{ns}circle")
+  assert len(rects) == 2
+  assert len(polylines) == 4
+  assert len(paths) == 4
+  assert len(circles) == 1
 ##
 
 # --- Error tests ---
