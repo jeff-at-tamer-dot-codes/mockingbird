@@ -10,6 +10,9 @@ SELF_APPLY_LEFT = Func(Appl(Appl(Var(0), Var(0)), Var(0)))
 SELF_APPLY_RIGHT = Func(Appl(Var(0), Appl(Var(0), Var(0))))
 KITE = Func(Func(Var(0)))
 KESTREL = Func(Func(Var(1)))
+NESTED_01 = Func(Func(Appl(Var(0), Var(1))))
+NESTED_10 = Func(Func(Appl(Var(1), Var(0))))
+NESTED_11 = Func(Func(Appl(Var(1), Var(1))))
 NESTED_MOCKINGBIRD = Func(Func(Appl(Var(0), Var(0))))
 NESTED_DOUBLE_MOCKINGBIRD = Func(Func(Appl(Appl(Var(0), Var(0)), Appl(Var(0), Var(0)))))
 TRIPLE_VAR0 = Func(Func(Func(Var(0))))
@@ -484,6 +487,15 @@ def test_nested_double_mockingbird_outer_ear_one_row_above_inner():
   assert outer.ear.y == inner.ear.y - g
 ##
 
+def test_nested_double_mockingbird_vertical_gap_is_one_row():
+  lo = layout(NESTED_DOUBLE_MOCKINGBIRD)
+  outer = lo.boxes[0]
+  inner = lo.boxes[1]
+  g = 20.0
+  assert inner.rect.y - outer.rect.y == g
+  assert (outer.rect.y + outer.rect.height) - (inner.rect.y + inner.rect.height) == g
+##
+
 # --- Error tests ---
 
 def test_appl_raises():
@@ -492,9 +504,9 @@ def test_appl_raises():
   ##
 ##
 
-def test_nested_func_appl_body_raises():
+def test_nested_func_free_var_raises():
   with pytest.raises(NotImplementedError):
-    layout(Func(Func(Appl(Var(0), Var(1)))))
+    layout(Func(Func(Appl(Var(0), Var(2)))))
   ##
 ##
 
@@ -1008,4 +1020,96 @@ def test_triple_var2_body_pipe():
   innermost = lo.boxes[2]
   assert pipe.points[0] == outer.ear
   assert pipe.points[-1] == innermost.throat
+##
+
+# --- NESTED_01 (λ λ 0 1) layout tests ---
+
+def test_nested_01_layout_structure():
+  lo = layout(NESTED_01)
+  assert len(lo.boxes) == 2
+  assert len(lo.pipes) == 4
+  assert len(lo.applicators) == 1
+##
+
+def test_nested_01_func_pipe_from_inner_ear():
+  lo = layout(NESTED_01)
+  pipe = lo.pipes[0]
+  assert pipe.points[0] == lo.boxes[1].ear
+  assert pipe.points[-1] == lo.applicators[0].func_port
+##
+
+def test_nested_01_arg_pipe_from_outer_ear():
+  lo = layout(NESTED_01)
+  pipe = lo.pipes[1]
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[1] == Point(lo.boxes[1].rect.x, lo.boxes[0].ear.y)
+  assert pipe.points[-1] == lo.applicators[0].arg_port
+  assert len(pipe.points) == 4
+##
+
+def test_nested_01_svg_valid_xml():
+  svg = render(NESTED_01)
+  ET.fromstring(svg)
+##
+
+# --- NESTED_10 (λ λ 1 0) layout tests ---
+
+def test_nested_10_layout_structure():
+  lo = layout(NESTED_10)
+  assert len(lo.boxes) == 2
+  assert len(lo.pipes) == 4
+  assert len(lo.applicators) == 1
+##
+
+def test_nested_10_func_pipe_from_outer_ear():
+  lo = layout(NESTED_10)
+  pipe = lo.pipes[0]
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[1] == Point(lo.boxes[1].rect.x, lo.boxes[0].ear.y)
+  assert pipe.points[-1] == lo.applicators[0].func_port
+  assert len(pipe.points) == 5
+##
+
+def test_nested_10_arg_pipe_from_inner_ear():
+  lo = layout(NESTED_10)
+  pipe = lo.pipes[1]
+  assert pipe.points[0] == lo.boxes[1].ear
+  assert pipe.points[-1] == lo.applicators[0].arg_port
+##
+
+def test_nested_10_svg_valid_xml():
+  svg = render(NESTED_10)
+  ET.fromstring(svg)
+##
+
+# --- NESTED_11 (λ λ 1 1) layout tests ---
+
+def test_nested_11_layout_structure():
+  lo = layout(NESTED_11)
+  assert len(lo.boxes) == 2
+  assert len(lo.pipes) == 4
+  assert len(lo.applicators) == 1
+##
+
+def test_nested_11_func_pipe_from_outer_ear():
+  lo = layout(NESTED_11)
+  pipe = lo.pipes[0]
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[1] == Point(lo.boxes[1].rect.x, lo.boxes[0].ear.y)
+  assert pipe.points[-1] == lo.applicators[0].func_port
+  assert len(pipe.points) == 5
+##
+
+def test_nested_11_arg_pipe_from_outer_ear():
+  lo = layout(NESTED_11)
+  pipe = lo.pipes[1]
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[1] == Point(lo.boxes[1].rect.x, lo.boxes[0].ear.y)
+  assert pipe.points[-1] == lo.applicators[0].arg_port
+  assert len(pipe.points) == 4
+##
+
+def test_nested_11_svg_valid_xml():
+  svg = render(NESTED_11)
+  ET.fromstring(svg)
 ##
