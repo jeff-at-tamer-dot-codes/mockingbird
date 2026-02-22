@@ -143,12 +143,58 @@ def _layout_general(body: Expr, s: Style) -> Layout:
   )
 ##
 
+def _layout_nested_var(var_index: int, s: Style) -> Layout:
+  g = s.grid
+  r = s.ear_radius
+  margin = r
+  box_w = 8 * g
+  box_h = 5 * g
+  total_w = box_w + 2 * margin
+  total_h = box_h + 2 * margin
+  bx = margin
+  by = margin
+  outer_ear = Point(bx, by + 2 * box_h / 5)
+  outer_throat = Point(bx + box_w, by + 2 * box_h / 5)
+  outer_box = LBox(rect=Rect(bx, by, box_w, box_h), ear=outer_ear, throat=outer_throat)
+  inner_w = box_w / 2
+  inner_h = 3 * box_h / 5
+  inner_x = bx + box_w / 4
+  inner_y = by + box_h / 5
+  inner_ear = Point(inner_x, by + 3 * box_h / 5)
+  inner_throat = Point(inner_x + inner_w, by + 3 * box_h / 5)
+  inner_box = LBox(rect=Rect(inner_x, inner_y, inner_w, inner_h), ear=inner_ear, throat=inner_throat)
+  throat_pipe = LPipe(points=(
+    inner_throat,
+    Point(bx + 7 * box_w / 8, by + 3 * box_h / 5),
+    Point(bx + 7 * box_w / 8, by + 2 * box_h / 5),
+    outer_throat,
+  ))
+  if var_index == 0:
+    body_pipe = LPipe(points=(inner_ear, inner_throat))
+  else:
+    body_pipe = LPipe(points=(
+      outer_ear,
+      Point(inner_x, by + 2 * box_h / 5),
+      Point(bx + box_w / 2, by + 3 * box_h / 5),
+      inner_throat,
+    ))
+  ##
+  return Layout(
+    width=total_w, height=total_h,
+    boxes=(outer_box, inner_box),
+    pipes=(body_pipe, throat_pipe),
+  )
+##
+
 def layout(expr: Expr, style: Style | None = None) -> Layout:
   if not isinstance(expr, Func):
     raise NotImplementedError(f"layout() only supports Func expressions, got: {expr}")
   ##
   s = style or Style()
   body = expr.body
+  if isinstance(body, Func) and isinstance(body.body, Var) and body.body.index in (0, 1):
+    return _layout_nested_var(body.body.index, s)
+  ##
   if _is_single_lambda_body(body):
     return _layout_general(body, s)
   ##

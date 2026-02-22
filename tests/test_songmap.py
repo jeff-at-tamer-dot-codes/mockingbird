@@ -8,6 +8,8 @@ MOCKINGBIRD = Func(Appl(Var(0), Var(0)))
 DOUBLE_MOCKINGBIRD = Func(Appl(Appl(Var(0), Var(0)), Appl(Var(0), Var(0))))
 SELF_APPLY_LEFT = Func(Appl(Appl(Var(0), Var(0)), Var(0)))
 SELF_APPLY_RIGHT = Func(Appl(Var(0), Appl(Var(0), Var(0))))
+KITE = Func(Func(Var(0)))
+KESTREL = Func(Func(Var(1)))
 
 # --- Identity layout tests ---
 
@@ -351,9 +353,9 @@ def test_appl_raises():
   ##
 ##
 
-def test_nested_func_raises():
+def test_triple_func_raises():
   with pytest.raises(NotImplementedError):
-    layout(Func(Func(Var(0))))
+    layout(Func(Func(Func(Var(0)))))
   ##
 ##
 
@@ -501,4 +503,235 @@ def test_self_apply_right_svg_has_circles():
   root = ET.fromstring(svg)
   circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
   assert len(circles) == 2
+##
+
+# --- Kite layout tests ---
+
+def test_kite_layout_structure():
+  lo = layout(KITE)
+  assert len(lo.boxes) == 2
+  assert len(lo.pipes) == 2
+  assert len(lo.applicators) == 0
+##
+
+def test_kite_outer_box_dimensions():
+  lo = layout(KITE)
+  box = lo.boxes[0]
+  assert box.rect.width == 8 * 20
+  assert box.rect.height == 5 * 20
+##
+
+def test_kite_inner_box_dimensions():
+  lo = layout(KITE)
+  outer = lo.boxes[0]
+  inner = lo.boxes[1]
+  assert inner.rect.width == outer.rect.width / 2
+  assert inner.rect.height == 3 * outer.rect.height / 5
+##
+
+def test_kite_inner_box_position():
+  lo = layout(KITE)
+  outer = lo.boxes[0]
+  inner = lo.boxes[1]
+  assert inner.rect.x == outer.rect.x + outer.rect.width / 4
+  assert inner.rect.y == outer.rect.y + outer.rect.height / 5
+##
+
+def test_kite_outer_ear_on_left_edge():
+  lo = layout(KITE)
+  box = lo.boxes[0]
+  assert box.ear.x == box.rect.x
+##
+
+def test_kite_outer_throat_on_right_edge():
+  lo = layout(KITE)
+  box = lo.boxes[0]
+  assert box.throat.x == box.rect.x + box.rect.width
+##
+
+def test_kite_outer_ear_throat_at_two_fifths():
+  lo = layout(KITE)
+  box = lo.boxes[0]
+  y = box.rect.y + 2 * box.rect.height / 5
+  assert box.ear.y == y
+  assert box.throat.y == y
+##
+
+def test_kite_inner_ear_on_inner_left_edge():
+  lo = layout(KITE)
+  inner = lo.boxes[1]
+  assert inner.ear.x == inner.rect.x
+##
+
+def test_kite_inner_throat_on_inner_right_edge():
+  lo = layout(KITE)
+  inner = lo.boxes[1]
+  assert inner.throat.x == inner.rect.x + inner.rect.width
+##
+
+def test_kite_inner_ear_throat_at_three_fifths():
+  lo = layout(KITE)
+  outer = lo.boxes[0]
+  inner = lo.boxes[1]
+  y = outer.rect.y + 3 * outer.rect.height / 5
+  assert inner.ear.y == y
+  assert inner.throat.y == y
+##
+
+def test_kite_pipe_counts():
+  lo = layout(KITE)
+  counts = [len(p.points) for p in lo.pipes]
+  assert counts == [2, 4]
+##
+
+def test_kite_throat_pipe():
+  lo = layout(KITE)
+  pipe = lo.pipes[1]
+  inner = lo.boxes[1]
+  outer = lo.boxes[0]
+  assert pipe.points[0] == inner.throat
+  assert pipe.points[-1] == outer.throat
+##
+
+def test_kite_body_pipe():
+  lo = layout(KITE)
+  pipe = lo.pipes[0]
+  inner = lo.boxes[1]
+  assert pipe.points[0] == inner.ear
+  assert pipe.points[-1] == inner.throat
+##
+
+def test_kite_svg_valid_xml():
+  svg = render(KITE)
+  ET.fromstring(svg)
+##
+
+def test_kite_svg_elements():
+  svg = render(KITE)
+  root = ET.fromstring(svg)
+  ns = "{http://www.w3.org/2000/svg}"
+  rects = root.findall(f".//{ns}rect")
+  polylines = root.findall(f".//{ns}polyline")
+  circles = root.findall(f".//{ns}circle")
+  paths = root.findall(f".//{ns}path")
+  assert len(rects) == 2
+  assert len(polylines) == 2
+  assert len(circles) == 0
+  assert len(paths) == 4
+##
+
+# --- Kestrel layout tests ---
+
+def test_kestrel_layout_structure():
+  lo = layout(KESTREL)
+  assert len(lo.boxes) == 2
+  assert len(lo.pipes) == 2
+  assert len(lo.applicators) == 0
+##
+
+def test_kestrel_outer_box_dimensions():
+  lo = layout(KESTREL)
+  box = lo.boxes[0]
+  assert box.rect.width == 8 * 20
+  assert box.rect.height == 5 * 20
+##
+
+def test_kestrel_inner_box_dimensions():
+  lo = layout(KESTREL)
+  outer = lo.boxes[0]
+  inner = lo.boxes[1]
+  assert inner.rect.width == outer.rect.width / 2
+  assert inner.rect.height == 3 * outer.rect.height / 5
+##
+
+def test_kestrel_inner_box_position():
+  lo = layout(KESTREL)
+  outer = lo.boxes[0]
+  inner = lo.boxes[1]
+  assert inner.rect.x == outer.rect.x + outer.rect.width / 4
+  assert inner.rect.y == outer.rect.y + outer.rect.height / 5
+##
+
+def test_kestrel_outer_ear_on_left_edge():
+  lo = layout(KESTREL)
+  box = lo.boxes[0]
+  assert box.ear.x == box.rect.x
+##
+
+def test_kestrel_outer_throat_on_right_edge():
+  lo = layout(KESTREL)
+  box = lo.boxes[0]
+  assert box.throat.x == box.rect.x + box.rect.width
+##
+
+def test_kestrel_outer_ear_throat_at_two_fifths():
+  lo = layout(KESTREL)
+  box = lo.boxes[0]
+  y = box.rect.y + 2 * box.rect.height / 5
+  assert box.ear.y == y
+  assert box.throat.y == y
+##
+
+def test_kestrel_inner_ear_on_inner_left_edge():
+  lo = layout(KESTREL)
+  inner = lo.boxes[1]
+  assert inner.ear.x == inner.rect.x
+##
+
+def test_kestrel_inner_throat_on_inner_right_edge():
+  lo = layout(KESTREL)
+  inner = lo.boxes[1]
+  assert inner.throat.x == inner.rect.x + inner.rect.width
+##
+
+def test_kestrel_inner_ear_throat_at_three_fifths():
+  lo = layout(KESTREL)
+  outer = lo.boxes[0]
+  inner = lo.boxes[1]
+  y = outer.rect.y + 3 * outer.rect.height / 5
+  assert inner.ear.y == y
+  assert inner.throat.y == y
+##
+
+def test_kestrel_pipe_counts():
+  lo = layout(KESTREL)
+  counts = [len(p.points) for p in lo.pipes]
+  assert counts == [4, 4]
+##
+
+def test_kestrel_throat_pipe():
+  lo = layout(KESTREL)
+  pipe = lo.pipes[1]
+  inner = lo.boxes[1]
+  outer = lo.boxes[0]
+  assert pipe.points[0] == inner.throat
+  assert pipe.points[-1] == outer.throat
+##
+
+def test_kestrel_body_pipe():
+  lo = layout(KESTREL)
+  pipe = lo.pipes[0]
+  outer = lo.boxes[0]
+  inner = lo.boxes[1]
+  assert pipe.points[0] == outer.ear
+  assert pipe.points[-1] == inner.throat
+##
+
+def test_kestrel_svg_valid_xml():
+  svg = render(KESTREL)
+  ET.fromstring(svg)
+##
+
+def test_kestrel_svg_elements():
+  svg = render(KESTREL)
+  root = ET.fromstring(svg)
+  ns = "{http://www.w3.org/2000/svg}"
+  rects = root.findall(f".//{ns}rect")
+  polylines = root.findall(f".//{ns}polyline")
+  circles = root.findall(f".//{ns}circle")
+  paths = root.findall(f".//{ns}path")
+  assert len(rects) == 2
+  assert len(polylines) == 2
+  assert len(circles) == 0
+  assert len(paths) == 4
 ##
