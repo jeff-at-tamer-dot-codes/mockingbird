@@ -11,6 +11,7 @@ SELF_APPLY_RIGHT = Func(Appl(Var(0), Appl(Var(0), Var(0))))
 KITE = Func(Func(Var(0)))
 KESTREL = Func(Func(Var(1)))
 NESTED_MOCKINGBIRD = Func(Func(Appl(Var(0), Var(0))))
+NESTED_DOUBLE_MOCKINGBIRD = Func(Func(Appl(Appl(Var(0), Var(0)), Appl(Var(0), Var(0)))))
 TRIPLE_VAR0 = Func(Func(Func(Var(0))))
 TRIPLE_VAR1 = Func(Func(Func(Var(1))))
 TRIPLE_VAR2 = Func(Func(Func(Var(2))))
@@ -464,6 +465,23 @@ def test_nested_mockingbird_svg_elements():
   assert len(polylines) == 4
   assert len(paths) == 4
   assert len(circles) == 1
+##
+
+# --- Nested double mockingbird (λλ(00)(00)) ear position tests ---
+
+def test_nested_double_mockingbird_inner_ear_one_row_above_bottom():
+  lo = layout(NESTED_DOUBLE_MOCKINGBIRD)
+  inner = lo.boxes[1]
+  g = 20.0
+  assert inner.ear.y == inner.rect.y + inner.rect.height - g
+##
+
+def test_nested_double_mockingbird_outer_ear_one_row_above_inner():
+  lo = layout(NESTED_DOUBLE_MOCKINGBIRD)
+  outer = lo.boxes[0]
+  inner = lo.boxes[1]
+  g = 20.0
+  assert outer.ear.y == inner.ear.y - g
 ##
 
 # --- Error tests ---

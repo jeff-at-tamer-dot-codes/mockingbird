@@ -218,13 +218,15 @@ def _layout_nested_body(depth: int, body: Expr, s: Style) -> Layout:
   by = r
   total_w = outer_w + 2 * bx
   total_h = outer_h + 2 * by
+  inner_top = by + outer_h * (N - 1) / (3 * N - 1)
+  inner_ear_y = inner_top + inner_h - g
   boxes: list[LBox] = []
   for i in range(N):
     w_i = inner_w + 2 * (N - 1 - i) * gap_w
     x_i = bx + i * gap_w
     top_i = by + outer_h * i / (3 * N - 1)
     h_i = outer_h * (3 * N - 1 - 2 * i) / (3 * N - 1)
-    ety = by + outer_h * (N + i) / (3 * N - 1)
+    ety = inner_ear_y - (N - 1 - i) * g
     ear = Point(x_i, ety)
     throat = Point(x_i + w_i, ety)
     boxes.append(LBox(rect=Rect(x_i, top_i, w_i, h_i), ear=ear, throat=throat))
