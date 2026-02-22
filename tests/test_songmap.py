@@ -6,6 +6,8 @@ from mockingbird.songmap import layout, render
 IDENTITY = Func(Var(0))
 MOCKINGBIRD = Func(Appl(Var(0), Var(0)))
 DOUBLE_MOCKINGBIRD = Func(Appl(Appl(Var(0), Var(0)), Appl(Var(0), Var(0))))
+SELF_APPLY_LEFT = Func(Appl(Appl(Var(0), Var(0)), Var(0)))
+SELF_APPLY_RIGHT = Func(Appl(Var(0), Appl(Var(0), Var(0))))
 
 # --- Identity layout tests ---
 
@@ -113,7 +115,7 @@ def test_mockingbird_pipe_func():
 def test_mockingbird_pipe_arg():
   lo = layout(MOCKINGBIRD)
   pipe = lo.pipes[1]
-  assert len(pipe.points) == 2
+  assert len(pipe.points) == 3
   assert pipe.points[0] == lo.boxes[0].ear
   assert pipe.points[-1] == lo.applicators[0].arg_port
 ##
@@ -359,4 +361,144 @@ def test_bare_var_raises():
   with pytest.raises(NotImplementedError):
     layout(Var(0))
   ##
+##
+
+# --- Self-apply-left layout tests ---
+
+def test_self_apply_left_layout_structure():
+  lo = layout(SELF_APPLY_LEFT)
+  assert len(lo.boxes) == 1
+  assert len(lo.pipes) == 5
+  assert len(lo.applicators) == 2
+##
+
+def test_self_apply_left_box_dimensions():
+  lo = layout(SELF_APPLY_LEFT)
+  box = lo.boxes[0]
+  assert box.rect.width > 0
+  assert box.rect.height > 0
+##
+
+def test_self_apply_left_ear_on_left_edge():
+  lo = layout(SELF_APPLY_LEFT)
+  box = lo.boxes[0]
+  assert box.ear.x == box.rect.x
+##
+
+def test_self_apply_left_throat_on_right_edge():
+  lo = layout(SELF_APPLY_LEFT)
+  box = lo.boxes[0]
+  assert box.throat.x == box.rect.x + box.rect.width
+##
+
+def test_self_apply_left_ear_throat_at_three_quarters():
+  lo = layout(SELF_APPLY_LEFT)
+  box = lo.boxes[0]
+  y_3_4 = box.rect.y + 3 * box.rect.height / 4
+  assert box.ear.y == y_3_4
+  assert box.throat.y == y_3_4
+##
+
+def test_self_apply_left_applicators_inside_box():
+  lo = layout(SELF_APPLY_LEFT)
+  box = lo.boxes[0]
+  for appl in lo.applicators:
+    assert box.rect.x < appl.center.x < box.rect.x + box.rect.width
+    assert box.rect.y < appl.center.y < box.rect.y + box.rect.height
+  ##
+##
+
+def test_self_apply_left_pipe_counts():
+  lo = layout(SELF_APPLY_LEFT)
+  counts = [len(p.points) for p in lo.pipes]
+  assert counts == [4, 3, 3, 3, 2]
+##
+
+def test_self_apply_left_svg_valid_xml():
+  svg = render(SELF_APPLY_LEFT)
+  ET.fromstring(svg)
+##
+
+def test_self_apply_left_svg_has_polylines():
+  svg = render(SELF_APPLY_LEFT)
+  root = ET.fromstring(svg)
+  polylines = root.findall(".//{http://www.w3.org/2000/svg}polyline")
+  assert len(polylines) == 5
+##
+
+def test_self_apply_left_svg_has_circles():
+  svg = render(SELF_APPLY_LEFT)
+  root = ET.fromstring(svg)
+  circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
+  assert len(circles) == 2
+##
+
+# --- Self-apply-right layout tests ---
+
+def test_self_apply_right_layout_structure():
+  lo = layout(SELF_APPLY_RIGHT)
+  assert len(lo.boxes) == 1
+  assert len(lo.pipes) == 5
+  assert len(lo.applicators) == 2
+##
+
+def test_self_apply_right_box_dimensions():
+  lo = layout(SELF_APPLY_RIGHT)
+  box = lo.boxes[0]
+  assert box.rect.width > 0
+  assert box.rect.height > 0
+##
+
+def test_self_apply_right_ear_on_left_edge():
+  lo = layout(SELF_APPLY_RIGHT)
+  box = lo.boxes[0]
+  assert box.ear.x == box.rect.x
+##
+
+def test_self_apply_right_throat_on_right_edge():
+  lo = layout(SELF_APPLY_RIGHT)
+  box = lo.boxes[0]
+  assert box.throat.x == box.rect.x + box.rect.width
+##
+
+def test_self_apply_right_ear_throat_at_three_quarters():
+  lo = layout(SELF_APPLY_RIGHT)
+  box = lo.boxes[0]
+  y_3_4 = box.rect.y + 3 * box.rect.height / 4
+  assert box.ear.y == y_3_4
+  assert box.throat.y == y_3_4
+##
+
+def test_self_apply_right_applicators_inside_box():
+  lo = layout(SELF_APPLY_RIGHT)
+  box = lo.boxes[0]
+  for appl in lo.applicators:
+    assert box.rect.x < appl.center.x < box.rect.x + box.rect.width
+    assert box.rect.y < appl.center.y < box.rect.y + box.rect.height
+  ##
+##
+
+def test_self_apply_right_pipe_counts():
+  lo = layout(SELF_APPLY_RIGHT)
+  counts = [len(p.points) for p in lo.pipes]
+  assert counts == [4, 3, 4, 2, 2]
+##
+
+def test_self_apply_right_svg_valid_xml():
+  svg = render(SELF_APPLY_RIGHT)
+  ET.fromstring(svg)
+##
+
+def test_self_apply_right_svg_has_polylines():
+  svg = render(SELF_APPLY_RIGHT)
+  root = ET.fromstring(svg)
+  polylines = root.findall(".//{http://www.w3.org/2000/svg}polyline")
+  assert len(polylines) == 5
+##
+
+def test_self_apply_right_svg_has_circles():
+  svg = render(SELF_APPLY_RIGHT)
+  root = ET.fromstring(svg)
+  circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
+  assert len(circles) == 2
 ##
