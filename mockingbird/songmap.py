@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from xml.etree.ElementTree import Element, SubElement, tostring
-from mockingbird.ast import Expr, Var, Func
+from mockingbird.ast import Expr, Var, Func, Appl
 
 @dataclass(frozen=True, slots=True)
 class Point:
@@ -40,20 +40,48 @@ class LPipe:
 ##
 
 @dataclass(frozen=True, slots=True)
+class LApplicator:
+  center: Point
+  func_port: Point
+  arg_port: Point
+  out_port: Point
+##
+
+@dataclass(frozen=True, slots=True)
 class Layout:
   width: float
   height: float
   boxes: tuple[LBox, ...]
   pipes: tuple[LPipe, ...]
+  applicators: tuple[LApplicator, ...] = ()
 ##
 
 _SVG_NS = "http://www.w3.org/2000/svg"
 
 def layout(expr: Expr, style: Style | None = None) -> Layout:
-  if not isinstance(expr, Func) or not isinstance(expr.body, Var) or expr.body.index != 0:
-    raise NotImplementedError(f"layout() currently only supports Func(Var(0)), got: {expr}")
+  if not isinstance(expr, Func):
+    raise NotImplementedError(f"layout() only supports Func expressions, got: {expr}")
   ##
   s = style or Style()
+  body = expr.body
+  if isinstance(body, Var) and body.index == 0:
+    return _layout_identity(s)
+  ##
+  if (isinstance(body, Appl) and isinstance(body.func, Var) and body.func.index == 0
+      and isinstance(body.arg, Var) and body.arg.index == 0):
+    return _layout_mockingbird(s)
+  ##
+  if (isinstance(body, Appl) and isinstance(body.func, Appl) and isinstance(body.arg, Appl)
+      and isinstance(body.func.func, Var) and body.func.func.index == 0
+      and isinstance(body.func.arg, Var) and body.func.arg.index == 0
+      and isinstance(body.arg.func, Var) and body.arg.func.index == 0
+      and isinstance(body.arg.arg, Var) and body.arg.arg.index == 0):
+    return _layout_double_mockingbird(s)
+  ##
+  raise NotImplementedError(f"layout() does not yet support: {expr}")
+##
+
+def _layout_identity(s: Style) -> Layout:
   box_w = 4 * s.grid
   box_h = 2 * s.grid
   margin = s.ear_radius
@@ -67,6 +95,93 @@ def layout(expr: Expr, style: Style | None = None) -> Layout:
   box = LBox(rect=Rect(box_x, box_y, box_w, box_h), ear=ear, throat=throat)
   pipe = LPipe(points=(ear, throat))
   return Layout(width=total_w, height=total_h, boxes=(box,), pipes=(pipe,))
+##
+
+def _layout_mockingbird(s: Style) -> Layout:
+  box_w = 6 * s.grid
+  box_h = 3 * s.grid
+  margin = s.ear_radius
+  total_w = box_w + 2 * margin
+  total_h = box_h + 2 * margin
+  box_x = margin
+  box_y = margin
+  y_2_3 = box_y + 2 * box_h / 3
+  ear = Point(box_x, y_2_3)
+  throat = Point(box_x + box_w, y_2_3)
+  box = LBox(rect=Rect(box_x, box_y, box_w, box_h), ear=ear, throat=throat)
+  ar = s.ear_radius
+  ax = box_x + 2 * box_w / 3
+  appl = LApplicator(
+    center=Point(ax, y_2_3),
+    func_port=Point(ax, y_2_3 - ar),
+    arg_port=Point(ax - ar, y_2_3),
+    out_port=Point(ax + ar, y_2_3),
+  )
+  wp1 = Point(box_x + box_w / 3, box_y + box_h / 3)
+  wp2 = Point(ax, box_y + box_h / 3)
+  pipes = (
+    LPipe(points=(ear, wp1, wp2, appl.func_port)),
+    LPipe(points=(ear, appl.arg_port)),
+    LPipe(points=(appl.out_port, throat)),
+  )
+  return Layout(
+    width=total_w, height=total_h, boxes=(box,), pipes=pipes,
+    applicators=(appl,),
+  )
+##
+
+def _layout_double_mockingbird(s: Style) -> Layout:
+  box_w = 8 * s.grid
+  box_h = 5 * s.grid
+  margin = s.ear_radius
+  total_w = box_w + 2 * margin
+  total_h = box_h + 2 * margin
+  box_x = margin
+  box_y = margin
+  r = s.ear_radius
+  y_ear = box_y + 4 * box_h / 5
+  ear = Point(box_x, y_ear)
+  throat = Point(box_x + box_w, y_ear)
+  box = LBox(rect=Rect(box_x, box_y, box_w, box_h), ear=ear, throat=throat)
+  inner1_x = box_x + box_w / 2
+  inner1_y = box_y + 2 * box_h / 5
+  inner1 = LApplicator(
+    center=Point(inner1_x, inner1_y),
+    func_port=Point(inner1_x, inner1_y - r),
+    arg_port=Point(inner1_x - r, inner1_y),
+    out_port=Point(inner1_x + r, inner1_y),
+  )
+  inner2_x = box_x + box_w / 2
+  inner2_y = box_y + 4 * box_h / 5
+  inner2 = LApplicator(
+    center=Point(inner2_x, inner2_y),
+    func_port=Point(inner2_x, inner2_y - r),
+    arg_port=Point(inner2_x - r, inner2_y),
+    out_port=Point(inner2_x + r, inner2_y),
+  )
+  outer_x = box_x + 3 * box_w / 4
+  outer_y = box_y + 4 * box_h / 5
+  outer = LApplicator(
+    center=Point(outer_x, outer_y),
+    func_port=Point(outer_x, outer_y - r),
+    arg_port=Point(outer_x - r, outer_y),
+    out_port=Point(outer_x + r, outer_y),
+  )
+  fan_x = box_x + box_w / 4
+  pipes = (
+    LPipe(points=(ear, Point(fan_x, box_y + box_h / 5), Point(inner1_x, box_y + box_h / 5), inner1.func_port)),
+    LPipe(points=(ear, Point(fan_x, inner1_y), inner1.arg_port)),
+    LPipe(points=(ear, Point(fan_x, box_y + 3 * box_h / 5), Point(inner2_x, box_y + 3 * box_h / 5),
+                  inner2.func_port)),
+    LPipe(points=(ear, Point(fan_x, inner2_y), inner2.arg_port)),
+    LPipe(points=(inner1.out_port, Point(outer_x, inner1_y), outer.func_port)),
+    LPipe(points=(inner2.out_port, outer.arg_port)),
+    LPipe(points=(outer.out_port, throat)),
+  )
+  return Layout(
+    width=total_w, height=total_h, boxes=(box,), pipes=pipes,
+    applicators=(inner1, inner2, outer),
+  )
 ##
 
 def render_layout(lo: Layout, style: Style | None = None) -> str:
@@ -116,6 +231,15 @@ def render_layout(lo: Layout, style: Style | None = None) -> str:
     path = SubElement(g_throats, "path")
     path.set("d", f"M {throat.x},{throat.y - r} A {r},{r} 0 0 1 {throat.x},{throat.y + r} Z")
     path.set("fill", s.fill)
+  ##
+  g_applicators = SubElement(svg, "g")
+  g_applicators.set("class", "applicators")
+  for appl in lo.applicators:
+    circle = SubElement(g_applicators, "circle")
+    circle.set("cx", str(appl.center.x))
+    circle.set("cy", str(appl.center.y))
+    circle.set("r", str(s.ear_radius))
+    circle.set("fill", s.fill)
   ##
   return tostring(svg, encoding="unicode")
 ##

@@ -4,8 +4,10 @@ from mockingbird.ast import Var, Func, Appl
 from mockingbird.songmap import layout, render
 
 IDENTITY = Func(Var(0))
+MOCKINGBIRD = Func(Appl(Var(0), Var(0)))
+DOUBLE_MOCKINGBIRD = Func(Appl(Appl(Var(0), Var(0)), Appl(Var(0), Var(0))))
 
-# --- Layout tests ---
+# --- Identity layout tests ---
 
 def test_identity_layout_structure():
   lo = layout(IDENTITY)
@@ -48,7 +50,83 @@ def test_identity_pipe_connects_ear_to_throat():
   assert pipe.points[-1] == box.throat
 ##
 
-# --- SVG tests ---
+# --- Mockingbird layout tests ---
+
+def test_mockingbird_layout_structure():
+  lo = layout(MOCKINGBIRD)
+  assert len(lo.boxes) == 1
+  assert len(lo.pipes) == 3
+  assert len(lo.applicators) == 1
+##
+
+def test_mockingbird_box_dimensions():
+  lo = layout(MOCKINGBIRD)
+  box = lo.boxes[0]
+  assert box.rect.width > 0
+  assert box.rect.height > 0
+##
+
+def test_mockingbird_ear_on_left_edge():
+  lo = layout(MOCKINGBIRD)
+  box = lo.boxes[0]
+  assert box.ear.x == box.rect.x
+##
+
+def test_mockingbird_throat_on_right_edge():
+  lo = layout(MOCKINGBIRD)
+  box = lo.boxes[0]
+  assert box.throat.x == box.rect.x + box.rect.width
+##
+
+def test_mockingbird_ear_throat_at_two_thirds():
+  lo = layout(MOCKINGBIRD)
+  box = lo.boxes[0]
+  y_2_3 = box.rect.y + 2 * box.rect.height / 3
+  assert box.ear.y == y_2_3
+  assert box.throat.y == y_2_3
+##
+
+def test_mockingbird_applicator_inside_box():
+  lo = layout(MOCKINGBIRD)
+  box = lo.boxes[0]
+  appl = lo.applicators[0]
+  assert box.rect.x < appl.center.x < box.rect.x + box.rect.width
+  assert box.rect.y < appl.center.y < box.rect.y + box.rect.height
+##
+
+def test_mockingbird_applicator_ports():
+  lo = layout(MOCKINGBIRD)
+  appl = lo.applicators[0]
+  assert appl.func_port.y < appl.center.y
+  assert appl.arg_port.x < appl.center.x
+  assert appl.out_port.x > appl.center.x
+##
+
+def test_mockingbird_pipe_func():
+  lo = layout(MOCKINGBIRD)
+  pipe = lo.pipes[0]
+  assert len(pipe.points) == 4
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[-1] == lo.applicators[0].func_port
+##
+
+def test_mockingbird_pipe_arg():
+  lo = layout(MOCKINGBIRD)
+  pipe = lo.pipes[1]
+  assert len(pipe.points) == 2
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[-1] == lo.applicators[0].arg_port
+##
+
+def test_mockingbird_pipe_out_to_throat():
+  lo = layout(MOCKINGBIRD)
+  pipe = lo.pipes[2]
+  assert len(pipe.points) == 2
+  assert pipe.points[0] == lo.applicators[0].out_port
+  assert pipe.points[-1] == lo.boxes[0].throat
+##
+
+# --- Identity SVG tests ---
 
 def test_identity_svg_valid_xml():
   svg = render(IDENTITY)
@@ -82,6 +160,185 @@ def test_identity_svg_has_ear_and_throat():
   root = ET.fromstring(svg)
   paths = root.findall(".//{http://www.w3.org/2000/svg}path")
   assert len(paths) == 2
+##
+
+# --- Mockingbird SVG tests ---
+
+def test_mockingbird_svg_valid_xml():
+  svg = render(MOCKINGBIRD)
+  ET.fromstring(svg)
+##
+
+def test_mockingbird_svg_has_rect():
+  svg = render(MOCKINGBIRD)
+  root = ET.fromstring(svg)
+  rects = root.findall(".//{http://www.w3.org/2000/svg}rect")
+  assert len(rects) == 1
+##
+
+def test_mockingbird_svg_has_polylines():
+  svg = render(MOCKINGBIRD)
+  root = ET.fromstring(svg)
+  polylines = root.findall(".//{http://www.w3.org/2000/svg}polyline")
+  assert len(polylines) == 3
+##
+
+def test_mockingbird_svg_has_ear_and_throat():
+  svg = render(MOCKINGBIRD)
+  root = ET.fromstring(svg)
+  paths = root.findall(".//{http://www.w3.org/2000/svg}path")
+  assert len(paths) == 2
+##
+
+def test_mockingbird_svg_has_circles():
+  svg = render(MOCKINGBIRD)
+  root = ET.fromstring(svg)
+  circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
+  assert len(circles) == 1
+##
+
+# --- Double Mockingbird layout tests ---
+
+def test_double_mockingbird_layout_structure():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  assert len(lo.boxes) == 1
+  assert len(lo.pipes) == 7
+  assert len(lo.applicators) == 3
+##
+
+def test_double_mockingbird_box_dimensions():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  box = lo.boxes[0]
+  assert box.rect.width > 0
+  assert box.rect.height > 0
+##
+
+def test_double_mockingbird_ear_on_left_edge():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  box = lo.boxes[0]
+  assert box.ear.x == box.rect.x
+##
+
+def test_double_mockingbird_throat_on_right_edge():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  box = lo.boxes[0]
+  assert box.throat.x == box.rect.x + box.rect.width
+##
+
+def test_double_mockingbird_ear_throat_at_four_fifths():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  box = lo.boxes[0]
+  y_4_5 = box.rect.y + 4 * box.rect.height / 5
+  assert box.ear.y == y_4_5
+  assert box.throat.y == y_4_5
+##
+
+def test_double_mockingbird_applicators_inside_box():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  box = lo.boxes[0]
+  for appl in lo.applicators:
+    assert box.rect.x < appl.center.x < box.rect.x + box.rect.width
+    assert box.rect.y < appl.center.y < box.rect.y + box.rect.height
+  ##
+##
+
+def test_double_mockingbird_applicator_columns():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  box = lo.boxes[0]
+  inner1, inner2, outer = lo.applicators
+  mid_x = box.rect.x + box.rect.width / 2
+  three_quarter_x = box.rect.x + 3 * box.rect.width / 4
+  assert inner1.center.x == mid_x
+  assert inner2.center.x == mid_x
+  assert outer.center.x == three_quarter_x
+##
+
+def test_double_mockingbird_applicator_rows():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  box = lo.boxes[0]
+  inner1, inner2, outer = lo.applicators
+  y_2_5 = box.rect.y + 2 * box.rect.height / 5
+  y_4_5 = box.rect.y + 4 * box.rect.height / 5
+  assert inner1.center.y == y_2_5
+  assert inner2.center.y == y_4_5
+  assert outer.center.y == y_4_5
+##
+
+def test_double_mockingbird_pipe_inner1_func():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  pipe = lo.pipes[0]
+  assert len(pipe.points) == 4
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[-1] == lo.applicators[0].func_port
+##
+
+def test_double_mockingbird_pipe_inner1_arg():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  pipe = lo.pipes[1]
+  assert len(pipe.points) == 3
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[-1] == lo.applicators[0].arg_port
+##
+
+def test_double_mockingbird_pipe_inner2_func():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  pipe = lo.pipes[2]
+  assert len(pipe.points) == 4
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[-1] == lo.applicators[1].func_port
+##
+
+def test_double_mockingbird_pipe_inner2_arg():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  pipe = lo.pipes[3]
+  assert len(pipe.points) == 3
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[-1] == lo.applicators[1].arg_port
+##
+
+def test_double_mockingbird_pipe_inner1_to_outer():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  pipe = lo.pipes[4]
+  assert len(pipe.points) == 3
+  assert pipe.points[0] == lo.applicators[0].out_port
+  assert pipe.points[-1] == lo.applicators[2].func_port
+##
+
+def test_double_mockingbird_pipe_inner2_to_outer():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  pipe = lo.pipes[5]
+  assert len(pipe.points) == 2
+  assert pipe.points[0] == lo.applicators[1].out_port
+  assert pipe.points[-1] == lo.applicators[2].arg_port
+##
+
+def test_double_mockingbird_pipe_out_to_throat():
+  lo = layout(DOUBLE_MOCKINGBIRD)
+  pipe = lo.pipes[6]
+  assert len(pipe.points) == 2
+  assert pipe.points[0] == lo.applicators[2].out_port
+  assert pipe.points[-1] == lo.boxes[0].throat
+##
+
+# --- Double Mockingbird SVG tests ---
+
+def test_double_mockingbird_svg_valid_xml():
+  svg = render(DOUBLE_MOCKINGBIRD)
+  ET.fromstring(svg)
+##
+
+def test_double_mockingbird_svg_has_polylines():
+  svg = render(DOUBLE_MOCKINGBIRD)
+  root = ET.fromstring(svg)
+  polylines = root.findall(".//{http://www.w3.org/2000/svg}polyline")
+  assert len(polylines) == 7
+##
+
+def test_double_mockingbird_svg_has_circles():
+  svg = render(DOUBLE_MOCKINGBIRD)
+  root = ET.fromstring(svg)
+  circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
+  assert len(circles) == 3
 ##
 
 # --- Error tests ---
