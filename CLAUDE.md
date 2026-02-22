@@ -15,14 +15,15 @@ if foo:
 ##
 ```
 
-- If an indented block consists solely of a single line, e.g. `break`, `continue`, `pass`, `return`, etc., then it should be moved to the end of the previous line. In these cases, the trailing `##` is omitted. This rule does not apply for `class` & `def` statements, which should always be multi-line.
+- If an indented block consists solely of one of these five exact lines of code: `break`, `continue`, `pass`, `return`, or `return None`, then it should be moved to the end of the previous line. In these cases, the trailing `##` is omitted, because we never indented. This rule does not apply for `class` & `def` statements, which should always be multi-line.
 
 ```python
 if foo: return None
 ```
 
 - Always use **type hints**.
-- Keep things simple. Avoid over-engineering.
+- Keep things as simple as possible. Avoid over-engineering.
+- No need for docstrings at the current moment.
 
 ## Architecture
 
@@ -47,4 +48,4 @@ if foo: return None
 
 ## Owner
 
-Jeff
+Jeff Tamer <jeff@tamer.codes>
