@@ -104,7 +104,7 @@ def _layout_general(body: Expr, s: Style) -> Layout:
       return (idx, idx)
     ##
     assert isinstance(expr, Appl)
-    func_result, func_last = build(expr.func, depth_from_root + 1)
+    func_result, _ = build(expr.func, depth_from_root + 1)
     arg_result, arg_last = build(expr.arg, depth_from_root + 1)
     appl_col = num_cols - 1 - depth_from_root
     ax = col_x(appl_col)
