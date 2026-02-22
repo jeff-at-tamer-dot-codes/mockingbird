@@ -10,6 +10,9 @@ SELF_APPLY_LEFT = Func(Appl(Appl(Var(0), Var(0)), Var(0)))
 SELF_APPLY_RIGHT = Func(Appl(Var(0), Appl(Var(0), Var(0))))
 KITE = Func(Func(Var(0)))
 KESTREL = Func(Func(Var(1)))
+TRIPLE_VAR0 = Func(Func(Func(Var(0))))
+TRIPLE_VAR1 = Func(Func(Func(Var(1))))
+TRIPLE_VAR2 = Func(Func(Func(Var(2))))
 
 # --- Identity layout tests ---
 
@@ -353,9 +356,9 @@ def test_appl_raises():
   ##
 ##
 
-def test_triple_func_raises():
+def test_nested_func_appl_body_raises():
   with pytest.raises(NotImplementedError):
-    layout(Func(Func(Func(Var(0)))))
+    layout(Func(Func(Appl(Var(0), Var(1)))))
   ##
 ##
 
@@ -734,4 +737,139 @@ def test_kestrel_svg_elements():
   assert len(polylines) == 2
   assert len(circles) == 0
   assert len(paths) == 4
+##
+
+# --- Triple Var0 (λλλ0) layout tests ---
+
+def test_triple_var0_layout_structure():
+  lo = layout(TRIPLE_VAR0)
+  assert len(lo.boxes) == 3
+  assert len(lo.pipes) == 3
+  assert len(lo.applicators) == 0
+##
+
+def test_triple_var0_outer_box_dimensions():
+  lo = layout(TRIPLE_VAR0)
+  box = lo.boxes[0]
+  assert box.rect.width == 10 * 20
+  assert box.rect.height == 8 * 20
+##
+
+def test_triple_var0_box_widths():
+  lo = layout(TRIPLE_VAR0)
+  outer = lo.boxes[0]
+  assert lo.boxes[0].rect.width == outer.rect.width
+  assert lo.boxes[1].rect.width == 2 * outer.rect.width / 3
+  assert lo.boxes[2].rect.width == outer.rect.width / 3
+##
+
+def test_triple_var0_box_heights():
+  lo = layout(TRIPLE_VAR0)
+  outer = lo.boxes[0]
+  assert lo.boxes[0].rect.height == outer.rect.height
+  assert lo.boxes[1].rect.height == 3 * outer.rect.height / 4
+  assert lo.boxes[2].rect.height == outer.rect.height / 2
+##
+
+def test_triple_var0_box_positions():
+  lo = layout(TRIPLE_VAR0)
+  outer = lo.boxes[0]
+  assert lo.boxes[1].rect.x == outer.rect.x + outer.rect.width / 6
+  assert lo.boxes[1].rect.y == outer.rect.y + outer.rect.height / 8
+  assert lo.boxes[2].rect.x == outer.rect.x + outer.rect.width / 3
+  assert lo.boxes[2].rect.y == outer.rect.y + outer.rect.height / 4
+##
+
+def test_triple_var0_ear_throat_y_positions():
+  lo = layout(TRIPLE_VAR0)
+  outer = lo.boxes[0]
+  assert lo.boxes[0].ear.y == outer.rect.y + 3 * outer.rect.height / 8
+  assert lo.boxes[1].ear.y == outer.rect.y + outer.rect.height / 2
+  assert lo.boxes[2].ear.y == outer.rect.y + 5 * outer.rect.height / 8
+##
+
+def test_triple_var0_pipe_counts():
+  lo = layout(TRIPLE_VAR0)
+  counts = [len(p.points) for p in lo.pipes]
+  assert counts == [2, 4, 4]
+##
+
+def test_triple_var0_body_pipe():
+  lo = layout(TRIPLE_VAR0)
+  pipe = lo.pipes[0]
+  innermost = lo.boxes[2]
+  assert pipe.points[0] == innermost.ear
+  assert pipe.points[-1] == innermost.throat
+##
+
+def test_triple_var0_throat_pipes():
+  lo = layout(TRIPLE_VAR0)
+  inner_throat_pipe = lo.pipes[1]
+  assert inner_throat_pipe.points[0] == lo.boxes[2].throat
+  assert inner_throat_pipe.points[-1] == lo.boxes[1].throat
+  outer_throat_pipe = lo.pipes[2]
+  assert outer_throat_pipe.points[0] == lo.boxes[1].throat
+  assert outer_throat_pipe.points[-1] == lo.boxes[0].throat
+##
+
+def test_triple_var0_svg():
+  svg = render(TRIPLE_VAR0)
+  root = ET.fromstring(svg)
+  ns = "{http://www.w3.org/2000/svg}"
+  rects = root.findall(f".//{ns}rect")
+  polylines = root.findall(f".//{ns}polyline")
+  circles = root.findall(f".//{ns}circle")
+  paths = root.findall(f".//{ns}path")
+  assert len(rects) == 3
+  assert len(polylines) == 3
+  assert len(circles) == 0
+  assert len(paths) == 6
+##
+
+# --- Triple Var1 (λλλ1) layout tests ---
+
+def test_triple_var1_layout_structure():
+  lo = layout(TRIPLE_VAR1)
+  assert len(lo.boxes) == 3
+  assert len(lo.pipes) == 3
+  assert len(lo.applicators) == 0
+##
+
+def test_triple_var1_pipe_counts():
+  lo = layout(TRIPLE_VAR1)
+  counts = [len(p.points) for p in lo.pipes]
+  assert counts == [4, 4, 4]
+##
+
+def test_triple_var1_body_pipe():
+  lo = layout(TRIPLE_VAR1)
+  pipe = lo.pipes[0]
+  middle = lo.boxes[1]
+  innermost = lo.boxes[2]
+  assert pipe.points[0] == middle.ear
+  assert pipe.points[-1] == innermost.throat
+##
+
+# --- Triple Var2 (λλλ2) layout tests ---
+
+def test_triple_var2_layout_structure():
+  lo = layout(TRIPLE_VAR2)
+  assert len(lo.boxes) == 3
+  assert len(lo.pipes) == 3
+  assert len(lo.applicators) == 0
+##
+
+def test_triple_var2_pipe_counts():
+  lo = layout(TRIPLE_VAR2)
+  counts = [len(p.points) for p in lo.pipes]
+  assert counts == [4, 4, 4]
+##
+
+def test_triple_var2_body_pipe():
+  lo = layout(TRIPLE_VAR2)
+  pipe = lo.pipes[0]
+  outer = lo.boxes[0]
+  innermost = lo.boxes[2]
+  assert pipe.points[0] == outer.ear
+  assert pipe.points[-1] == innermost.throat
 ##

@@ -143,46 +143,51 @@ def _layout_general(body: Expr, s: Style) -> Layout:
   )
 ##
 
-def _layout_nested_var(var_index: int, s: Style) -> Layout:
+def _layout_nested_var(depth: int, var_index: int, s: Style) -> Layout:
   g = s.grid
-  r = s.ear_radius
-  margin = r
-  box_w = 8 * g
-  box_h = 5 * g
-  total_w = box_w + 2 * margin
-  total_h = box_h + 2 * margin
-  bx = margin
-  by = margin
-  outer_ear = Point(bx, by + 2 * box_h / 5)
-  outer_throat = Point(bx + box_w, by + 2 * box_h / 5)
-  outer_box = LBox(rect=Rect(bx, by, box_w, box_h), ear=outer_ear, throat=outer_throat)
-  inner_w = box_w / 2
-  inner_h = 3 * box_h / 5
-  inner_x = bx + box_w / 4
-  inner_y = by + box_h / 5
-  inner_ear = Point(inner_x, by + 3 * box_h / 5)
-  inner_throat = Point(inner_x + inner_w, by + 3 * box_h / 5)
-  inner_box = LBox(rect=Rect(inner_x, inner_y, inner_w, inner_h), ear=inner_ear, throat=inner_throat)
-  throat_pipe = LPipe(points=(
-    inner_throat,
-    Point(bx + 7 * box_w / 8, by + 3 * box_h / 5),
-    Point(bx + 7 * box_w / 8, by + 2 * box_h / 5),
-    outer_throat,
-  ))
+  bx = s.ear_radius
+  by = s.ear_radius
+  N = depth
+  outer_w = 2 * (N + 2) * g
+  outer_h = (3 * N - 1) * g
+  total_w = outer_w + 2 * bx
+  total_h = outer_h + 2 * by
+  boxes: list[LBox] = []
+  for i in range(N):
+    w_i = outer_w * (N - i) / N
+    x_i = bx + outer_w * i / (2 * N)
+    top_i = by + outer_h * i / (3 * N - 1)
+    h_i = outer_h * (3 * N - 1 - 2 * i) / (3 * N - 1)
+    ety = by + outer_h * (N + i) / (3 * N - 1)
+    ear = Point(x_i, ety)
+    throat = Point(x_i + w_i, ety)
+    boxes.append(LBox(rect=Rect(x_i, top_i, w_i, h_i), ear=ear, throat=throat))
+  ##
+  innermost = boxes[N - 1]
   if var_index == 0:
-    body_pipe = LPipe(points=(inner_ear, inner_throat))
+    body_pipe = LPipe(points=(innermost.ear, innermost.throat))
   else:
+    source = boxes[N - 1 - var_index]
     body_pipe = LPipe(points=(
-      outer_ear,
-      Point(inner_x, by + 2 * box_h / 5),
-      Point(bx + box_w / 2, by + 3 * box_h / 5),
-      inner_throat,
+      source.ear,
+      Point(innermost.rect.x, source.ear.y),
+      Point(innermost.rect.x + innermost.rect.width / 2, innermost.throat.y),
+      innermost.throat,
     ))
+  ##
+  pipes: list[LPipe] = [body_pipe]
+  for i in reversed(range(N - 1)):
+    mid_x = bx + outer_w * (4 * N - 2 * i - 1) / (4 * N)
+    pipes.append(LPipe(points=(
+      boxes[i + 1].throat,
+      Point(mid_x, boxes[i + 1].throat.y),
+      Point(mid_x, boxes[i].throat.y),
+      boxes[i].throat,
+    )))
   ##
   return Layout(
     width=total_w, height=total_h,
-    boxes=(outer_box, inner_box),
-    pipes=(body_pipe, throat_pipe),
+    boxes=tuple(boxes), pipes=tuple(pipes),
   )
 ##
 
@@ -192,8 +197,13 @@ def layout(expr: Expr, style: Style | None = None) -> Layout:
   ##
   s = style or Style()
   body = expr.body
-  if isinstance(body, Func) and isinstance(body.body, Var) and body.body.index in (0, 1):
-    return _layout_nested_var(body.body.index, s)
+  depth, inner = 1, body
+  while isinstance(inner, Func):
+    depth += 1
+    inner = inner.body
+  ##
+  if depth >= 2 and isinstance(inner, Var) and 0 <= inner.index < depth:
+    return _layout_nested_var(depth, inner.index, s)
   ##
   if _is_single_lambda_body(body):
     return _layout_general(body, s)
