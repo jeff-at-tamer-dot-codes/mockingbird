@@ -24,6 +24,8 @@ APPL_III = parse(r'(λ 0) ((λ 0) (λ 0))')
 APPL_LEFT_III = parse(r'(λ 0) (λ 0) (λ 0)')
 APPL_LEFT_MI_I = parse(r'(λ 0 0) (λ 0) (λ 0)')
 APPL_LEFT_IIII = parse(r'(λ 0) (λ 0) (λ 0) (λ 0)')
+FUNC_APPL_II = parse(r'λ (λ 0) (λ 0)')
+FUNC_APPL_LEFT_III = parse(r'λ (λ 0) (λ 0) (λ 0)')
 
 class TestIdentity:
   @pytest.fixture(autouse=True)
@@ -1190,6 +1192,98 @@ class TestApplLeftIIII:
   ##
   def test_svg_valid_xml(self):
     svg = render(APPL_LEFT_IIII)
+    ET.fromstring(svg)
+  ##
+##
+
+class TestFuncApplII:
+  @pytest.fixture(autouse=True)
+  def _layout(self):
+    self.lo = layout(FUNC_APPL_II)
+  ##
+  def test_layout_structure(self):
+    assert len(self.lo.boxes) == 3
+    assert len(self.lo.pipes) == 4
+    assert len(self.lo.applicators) == 0
+  ##
+  def test_wrapping_box_surrounds_inner(self):
+    wrap = self.lo.boxes[0]
+    for inner in self.lo.boxes[1:]:
+      assert wrap.rect.x < inner.rect.x
+      assert wrap.rect.y <= inner.rect.y
+      assert wrap.rect.x + wrap.rect.width > inner.rect.x + inner.rect.width
+      assert wrap.rect.y + wrap.rect.height > inner.rect.y + inner.rect.height
+    ##
+  ##
+  def test_wrapping_box_ear_throat_same_y(self):
+    wrap = self.lo.boxes[0]
+    assert wrap.ear.y == wrap.throat.y
+  ##
+  def test_throat_pipe_s_curve(self):
+    pipe = self.lo.pipes[3]
+    assert len(pipe.points) == 4
+    inner_rightmost = self.lo.boxes[2]
+    wrap = self.lo.boxes[0]
+    assert pipe.points[0] == inner_rightmost.throat
+    assert pipe.points[-1] == wrap.throat
+  ##
+  def test_vertical_padding_one_grid_unit(self):
+    g = 20.0
+    wrap = self.lo.boxes[0]
+    inner_tops = [b.rect.y for b in self.lo.boxes[1:]]
+    inner_bottoms = [b.rect.y + b.rect.height for b in self.lo.boxes[1:]]
+    assert min(inner_tops) - wrap.rect.y == g
+    assert wrap.rect.y + wrap.rect.height - max(inner_bottoms) == g
+  ##
+  def test_ear_unconnected(self):
+    wrap = self.lo.boxes[0]
+    for pipe in self.lo.pipes:
+      for pt in pipe.points:
+        assert pt != wrap.ear
+      ##
+    ##
+  ##
+  def test_svg_valid_xml(self):
+    svg = render(FUNC_APPL_II)
+    ET.fromstring(svg)
+  ##
+##
+
+class TestFuncApplLeftIII:
+  @pytest.fixture(autouse=True)
+  def _layout(self):
+    self.lo = layout(FUNC_APPL_LEFT_III)
+  ##
+  def test_layout_structure(self):
+    assert len(self.lo.boxes) == 4
+    assert len(self.lo.pipes) == 7
+    assert len(self.lo.applicators) == 1
+  ##
+  def test_vertical_padding_one_grid_unit(self):
+    g = 20.0
+    wrap = self.lo.boxes[0]
+    inner_tops = [b.rect.y for b in self.lo.boxes[1:]]
+    inner_bottoms = [b.rect.y + b.rect.height for b in self.lo.boxes[1:]]
+    assert min(inner_tops) - wrap.rect.y == g
+    assert wrap.rect.y + wrap.rect.height - max(inner_bottoms) == g
+  ##
+  def test_wrapping_throat_horizontal_wire(self):
+    wrap = self.lo.boxes[0]
+    appl = self.lo.applicators[0]
+    assert wrap.throat.y == appl.out_port.y
+    wire = self.lo.pipes[6]
+    assert len(wire.points) == 2
+    assert wire.points[0].y == wire.points[1].y
+    assert wire.points[-1] == wrap.throat
+  ##
+  def test_horizontal_padding_one_grid_unit(self):
+    g = 20.0
+    wrap = self.lo.boxes[0]
+    appl = self.lo.applicators[0]
+    assert wrap.throat.x - appl.center.x == g
+  ##
+  def test_svg_valid_xml(self):
+    svg = render(FUNC_APPL_LEFT_III)
     ET.fromstring(svg)
   ##
 ##

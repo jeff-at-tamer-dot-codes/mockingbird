@@ -302,6 +302,69 @@ def _find_min_vertical_gap(lo_top: Layout, dx_top: float, lo_bot: Layout, dx_bot
   return min_dy
 ##
 
+def _layout_func_wrapping(depth: int, inner_lo: Layout, s: Style) -> Layout:
+  g = s.grid
+  r = s.ear_radius
+  N = depth
+  margin_x = r
+  margin_y = r
+  gap_w = 2 * g
+  inner_out = _output_point(inner_lo)
+  is_throat_output = inner_lo.output is None
+  right_pad = gap_w if is_throat_output else g - r
+  innermost_w = (gap_w - r) + max(inner_out.x + right_pad, inner_lo.width)
+  innermost_h = inner_lo.height + 2 * (g - r)
+  inner_dx = N * gap_w
+  inner_dy = N * g
+  case_offset = -g if is_throat_output else 0
+  innermost_throat_y = inner_out.y + inner_dy + case_offset
+  boxes: list[LBox] = []
+  for i in range(N):
+    box_w = innermost_w + 2 * (N - 1 - i) * gap_w
+    box_h = innermost_h + 2 * (N - 1 - i) * g
+    box_x = margin_x + i * gap_w
+    box_y = margin_y + i * g
+    throat_y = innermost_throat_y - (N - 1 - i) * g
+    ear = Point(box_x, throat_y)
+    throat = Point(box_x + box_w, throat_y)
+    boxes.append(LBox(rect=Rect(box_x, box_y, box_w, box_h), ear=ear, throat=throat))
+  ##
+  shifted_inner = inner_lo.offset(inner_dx, inner_dy)
+  inner_out_shifted = Point(inner_out.x + inner_dx, inner_out.y + inner_dy)
+  innermost_throat = boxes[N - 1].throat
+  pipes: list[LPipe] = list(shifted_inner.pipes)
+  if is_throat_output:
+    mid_x = (inner_out_shifted.x + innermost_throat.x) / 2
+    pipes.append(LPipe(points=(
+      inner_out_shifted,
+      Point(mid_x, inner_out_shifted.y),
+      Point(mid_x, innermost_throat.y),
+      innermost_throat,
+    )))
+  else:
+    pipes.append(LPipe(points=(inner_out_shifted, innermost_throat)))
+  ##
+  for i in reversed(range(N - 1)):
+    mid_x = (boxes[i + 1].throat.x + boxes[i].throat.x) / 2
+    pipes.append(LPipe(points=(
+      boxes[i + 1].throat,
+      Point(mid_x, boxes[i + 1].throat.y),
+      Point(mid_x, boxes[i].throat.y),
+      boxes[i].throat,
+    )))
+  ##
+  outermost_w = innermost_w + 2 * (N - 1) * gap_w
+  outermost_h = innermost_h + 2 * (N - 1) * g
+  total_w = 2 * margin_x + outermost_w
+  total_h = 2 * margin_y + outermost_h
+  return Layout(
+    width=total_w, height=total_h,
+    boxes=tuple(boxes) + shifted_inner.boxes,
+    pipes=tuple(pipes),
+    applicators=shifted_inner.applicators,
+  )
+##
+
 def _layout_left_appl(expr: Appl, s: Style) -> Layout:
   g = s.grid
   r = s.ear_radius
@@ -401,6 +464,10 @@ def layout(expr: Expr, style: Style | None = None) -> Layout:
   ##
   if _is_closed_appl_body(inner, depth):
     return _layout_nested_body(depth, inner, s)
+  ##
+  if isinstance(inner, Appl) and not any(inner.is_free(i) for i in range(depth)):
+    inner_lo = layout(inner, s)
+    return _layout_func_wrapping(depth, inner_lo, s)
   ##
   raise NotImplementedError(f"layout() does not yet support: {expr}")
 ##
