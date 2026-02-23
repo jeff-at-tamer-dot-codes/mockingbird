@@ -6,6 +6,9 @@ from mockingbird.ast import Expr, Var, Func, Appl
 class Point:
   x: float
   y: float
+  def offset(self, dx: float, dy: float) -> 'Point':
+    return Point(self.x + dx, self.y + dy)
+  ##
 ##
 
 @dataclass(frozen=True, slots=True)
@@ -32,11 +35,21 @@ class LBox:
   rect: Rect
   ear: Point
   throat: Point
+  def offset(self, dx: float, dy: float) -> 'LBox':
+    return LBox(
+      rect=Rect(self.rect.x + dx, self.rect.y + dy, self.rect.width, self.rect.height),
+      ear=self.ear.offset(dx, dy),
+      throat=self.throat.offset(dx, dy),
+    )
+  ##
 ##
 
 @dataclass(frozen=True, slots=True)
 class LPipe:
   points: tuple[Point, ...]
+  def offset(self, dx: float, dy: float) -> 'LPipe':
+    return LPipe(points=tuple(p.offset(dx, dy) for p in self.points))
+  ##
 ##
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +58,23 @@ class LApplicator:
   func_port: Point
   arg_port: Point
   out_port: Point
+  @classmethod
+  def from_center(cls, x: float, y: float, r: float) -> 'LApplicator':
+    return cls(
+      center=Point(x, y),
+      func_port=Point(x, y - r),
+      arg_port=Point(x - r, y),
+      out_port=Point(x + r, y),
+    )
+  ##
+  def offset(self, dx: float, dy: float) -> 'LApplicator':
+    return LApplicator(
+      center=self.center.offset(dx, dy),
+      func_port=self.func_port.offset(dx, dy),
+      arg_port=self.arg_port.offset(dx, dy),
+      out_port=self.out_port.offset(dx, dy),
+    )
+  ##
 ##
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +85,15 @@ class Layout:
   pipes: tuple[LPipe, ...]
   applicators: tuple[LApplicator, ...] = ()
   output: Point | None = None
+  def offset(self, dx: float, dy: float) -> 'Layout':
+    return Layout(
+      width=self.width, height=self.height,
+      boxes=tuple(b.offset(dx, dy) for b in self.boxes),
+      pipes=tuple(p.offset(dx, dy) for p in self.pipes),
+      applicators=tuple(a.offset(dx, dy) for a in self.applicators),
+      output=self.output.offset(dx, dy) if self.output is not None else None,
+    )
+  ##
 ##
 
 _SVG_NS = "http://www.w3.org/2000/svg"
@@ -79,78 +118,97 @@ def _max_var_index(expr: Expr) -> int:
   return max(_max_var_index(expr.func), _max_var_index(expr.arg))
 ##
 
+class _BodyBuilder:
+  def __init__(
+      self, body: Expr, boxes: list[LBox], throat: Point,
+      box_x: float, box_y: float, box_w: float, box_h: float,
+      s: Style,
+  ) -> None:
+    self._body = body
+    self._boxes = boxes
+    self._throat = throat
+    self._box_x = box_x
+    self._r = s.ear_radius
+    num_vars, depth = _body_stats(body)
+    self._num_cols = depth + 2
+    self._box_w = box_w
+    self._box_h = box_h
+    self._box_y = box_y
+    self._num_vars = num_vars
+    self._fan_x = self._col_x(1)
+    self.pipes: list[LPipe] = []
+    self.applicators: list[LApplicator] = []
+    self._leaf_counter = 0
+    self._var_indices: list[int] = []
+  ##
+  def _col_x(self, i: int) -> float:
+    return self._box_x + i * self._box_w / self._num_cols
+  ##
+  def _row_y(self, i: int) -> float:
+    return self._box_y + (i + 1) * self._box_h / (self._num_vars + 1)
+  ##
+  def _var_entry(self, var_ear: Point) -> tuple[Point, ...]:
+    if var_ear.x < self._box_x: return (var_ear, Point(self._box_x, var_ear.y))
+    return (var_ear,)
+  ##
+  def _build(self, expr: Expr, depth_from_root: int) -> tuple[int | LApplicator, int]:
+    if isinstance(expr, Var):
+      idx = self._leaf_counter
+      self._leaf_counter += 1
+      self._var_indices.append(expr.index)
+      return (idx, idx)
+    ##
+    assert isinstance(expr, Appl)
+    func_result, _ = self._build(expr.func, depth_from_root + 1)
+    arg_result, arg_last = self._build(expr.arg, depth_from_root + 1)
+    appl_col = self._num_cols - 1 - depth_from_root
+    ax = self._col_x(appl_col)
+    ay = self._row_y(arg_last)
+    appl = LApplicator.from_center(ax, ay, self._r)
+    self.applicators.append(appl)
+    if isinstance(func_result, int):
+      leaf_y = self._row_y(func_result)
+      var_ear = self._boxes[len(self._boxes) - 1 - self._var_indices[func_result]].ear
+      self.pipes.append(LPipe(points=(
+        *self._var_entry(var_ear), Point(self._fan_x, leaf_y), Point(ax, leaf_y), appl.func_port,
+      )))
+    else:
+      child_y = func_result.center.y
+      self.pipes.append(LPipe(points=(func_result.out_port, Point(ax, child_y), appl.func_port)))
+    ##
+    if isinstance(arg_result, int):
+      leaf_y = self._row_y(arg_result)
+      var_ear = self._boxes[len(self._boxes) - 1 - self._var_indices[arg_result]].ear
+      self.pipes.append(LPipe(points=(*self._var_entry(var_ear), Point(self._fan_x, leaf_y), appl.arg_port)))
+    else:
+      self.pipes.append(LPipe(points=(arg_result.out_port, appl.arg_port)))
+    ##
+    return (appl, arg_last)
+  ##
+  def run(self) -> tuple[list[LPipe], list[LApplicator]]:
+    result, _ = self._build(self._body, 0)
+    if isinstance(result, int):
+      var_ear = self._boxes[len(self._boxes) - 1 - self._var_indices[result]].ear
+      if var_ear.x < self._box_x:
+        self.pipes.append(LPipe(points=(
+          var_ear, Point(self._box_x, var_ear.y), Point(self._fan_x, self._throat.y), self._throat,
+        )))
+      else:
+        self.pipes.append(LPipe(points=(var_ear, self._throat)))
+      ##
+    else:
+      self.pipes.append(LPipe(points=(result.out_port, self._throat)))
+    ##
+    return (self.pipes, self.applicators)
+  ##
+##
+
 def _layout_body_in_box(
     body: Expr, boxes: list[LBox], throat: Point,
     box_x: float, box_y: float, box_w: float, box_h: float,
     s: Style,
 ) -> tuple[list[LPipe], list[LApplicator]]:
-  num_vars, depth = _body_stats(body)
-  num_cols = depth + 2
-  r = s.ear_radius
-  def col_x(i: int) -> float:
-    return box_x + i * box_w / num_cols
-  ##
-  def row_y(i: int) -> float:
-    return box_y + (i + 1) * box_h / (num_vars + 1)
-  ##
-  fan_x = col_x(1)
-  def _var_entry(var_ear: Point) -> tuple[Point, ...]:
-    if var_ear.x < box_x: return (var_ear, Point(box_x, var_ear.y))
-    return (var_ear,)
-  ##
-  applicators: list[LApplicator] = []
-  pipes: list[LPipe] = []
-  leaf_counter = [0]
-  var_indices: list[int] = []
-  def build(expr: Expr, depth_from_root: int) -> tuple[int | LApplicator, int]:
-    if isinstance(expr, Var):
-      idx = leaf_counter[0]
-      leaf_counter[0] += 1
-      var_indices.append(expr.index)
-      return (idx, idx)
-    ##
-    assert isinstance(expr, Appl)
-    func_result, _ = build(expr.func, depth_from_root + 1)
-    arg_result, arg_last = build(expr.arg, depth_from_root + 1)
-    appl_col = num_cols - 1 - depth_from_root
-    ax = col_x(appl_col)
-    ay = row_y(arg_last)
-    appl = LApplicator(
-      center=Point(ax, ay),
-      func_port=Point(ax, ay - r),
-      arg_port=Point(ax - r, ay),
-      out_port=Point(ax + r, ay),
-    )
-    applicators.append(appl)
-    if isinstance(func_result, int):
-      leaf_y = row_y(func_result)
-      var_ear = boxes[len(boxes) - 1 - var_indices[func_result]].ear
-      pipes.append(LPipe(points=(*_var_entry(var_ear), Point(fan_x, leaf_y), Point(ax, leaf_y), appl.func_port)))
-    else:
-      child_y = func_result.center.y
-      pipes.append(LPipe(points=(func_result.out_port, Point(ax, child_y), appl.func_port)))
-    ##
-    if isinstance(arg_result, int):
-      leaf_y = row_y(arg_result)
-      var_ear = boxes[len(boxes) - 1 - var_indices[arg_result]].ear
-      pipes.append(LPipe(points=(*_var_entry(var_ear), Point(fan_x, leaf_y), appl.arg_port)))
-    else:
-      pipes.append(LPipe(points=(arg_result.out_port, appl.arg_port)))
-    ##
-    return (appl, arg_last)
-  ##
-  result, _ = build(body, 0)
-  if isinstance(result, int):
-    var_ear = boxes[len(boxes) - 1 - var_indices[result]].ear
-    if var_ear.x < box_x:
-      pipes.append(LPipe(points=(var_ear, Point(box_x, var_ear.y), Point(fan_x, throat.y), throat)))
-    else:
-      pipes.append(LPipe(points=(var_ear, throat)))
-    ##
-  else:
-    pipes.append(LPipe(points=(result.out_port, throat)))
-  ##
-  return (pipes, applicators)
+  return _BodyBuilder(body, boxes, throat, box_x, box_y, box_w, box_h, s).run()
 ##
 
 def _layout_nested_body(depth: int, body: Expr, s: Style) -> Layout:
@@ -206,24 +264,7 @@ def _layout_nested_body(depth: int, body: Expr, s: Style) -> Layout:
 
 def _offset_layout(lo: Layout, dx: float, dy: float) -> Layout:
   if dx == 0 and dy == 0: return lo
-  def pt(p: Point) -> Point:
-    return Point(p.x + dx, p.y + dy)
-  ##
-  boxes = tuple(
-    LBox(rect=Rect(b.rect.x + dx, b.rect.y + dy, b.rect.width, b.rect.height),
-         ear=pt(b.ear), throat=pt(b.throat))
-    for b in lo.boxes
-  )
-  pipes = tuple(
-    LPipe(points=tuple(pt(p) for p in pipe.points))
-    for pipe in lo.pipes
-  )
-  applicators = tuple(
-    LApplicator(center=pt(a.center), func_port=pt(a.func_port), arg_port=pt(a.arg_port), out_port=pt(a.out_port))
-    for a in lo.applicators
-  )
-  output = pt(lo.output) if lo.output is not None else None
-  return Layout(width=lo.width, height=lo.height, boxes=boxes, pipes=pipes, applicators=applicators, output=output)
+  return lo.offset(dx, dy)
 ##
 
 def _output_point(lo: Layout) -> Point:
@@ -278,12 +319,7 @@ def _layout_left_appl(expr: Appl, s: Style) -> Layout:
   bot_out_shifted = Point(bot_out.x + dx_bot, bot_out.y + dy_bot)
   appl_cx = max_out_x + g
   appl_cy = bot_out_shifted.y
-  appl = LApplicator(
-    center=Point(appl_cx, appl_cy),
-    func_port=Point(appl_cx, appl_cy - r),
-    arg_port=Point(appl_cx - r, appl_cy),
-    out_port=Point(appl_cx + r, appl_cy),
-  )
+  appl = LApplicator.from_center(appl_cx, appl_cy, r)
   func_wire = LPipe(points=(top_out_shifted, Point(appl_cx, top_out_shifted.y), appl.func_port))
   arg_wire = LPipe(points=(bot_out_shifted, appl.arg_port))
   width = max(dx_top + lo_top.width, dx_bot + lo_bot.width, appl_cx + r)
@@ -297,10 +333,7 @@ def _layout_left_appl(expr: Appl, s: Style) -> Layout:
   )
 ##
 
-def _layout_appl(expr: Appl, s: Style) -> Layout:
-  if isinstance(expr.func, Appl):
-    return _layout_left_appl(expr, s)
-  ##
+def _layout_right_appl_chain(expr: Appl, s: Style) -> Layout:
   terms: list[Func] = []
   current: Expr = expr
   while isinstance(current, Appl):
@@ -345,6 +378,13 @@ def _layout_appl(expr: Appl, s: Style) -> Layout:
   )
 ##
 
+def _layout_appl(expr: Appl, s: Style) -> Layout:
+  if isinstance(expr.func, Appl):
+    return _layout_left_appl(expr, s)
+  ##
+  return _layout_right_appl_chain(expr, s)
+##
+
 def layout(expr: Expr, style: Style | None = None) -> Layout:
   s = style or Style()
   if isinstance(expr, Appl):
@@ -365,17 +405,12 @@ def layout(expr: Expr, style: Style | None = None) -> Layout:
   raise NotImplementedError(f"layout() does not yet support: {expr}")
 ##
 
-def render_layout(lo: Layout, style: Style | None = None) -> str:
-  s = style or Style()
-  svg = Element("svg", xmlns=_SVG_NS)
-  svg.set("viewBox", f"0 0 {lo.width} {lo.height}")
-  svg.set("width", str(lo.width))
-  svg.set("height", str(lo.height))
-  g_boxes = SubElement(svg, "g")
-  g_boxes.set("class", "boxes")
-  for box in lo.boxes:
+def _render_boxes(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
+  g = SubElement(parent, "g")
+  g.set("class", "boxes")
+  for box in boxes:
     rect = box.rect
-    rect_el = SubElement(g_boxes, "rect")
+    rect_el = SubElement(g, "rect")
     rect_el.set("x", str(rect.x))
     rect_el.set("y", str(rect.y))
     rect_el.set("width", str(rect.width))
@@ -385,43 +420,68 @@ def render_layout(lo: Layout, style: Style | None = None) -> str:
     rect_el.set("fill", "none")
     rect_el.set("stroke-width", "1")
   ##
-  g_pipes = SubElement(svg, "g")
-  g_pipes.set("class", "pipes")
-  for pipe in lo.pipes:
-    poly = SubElement(g_pipes, "polyline")
+##
+
+def _render_pipes(parent: Element, pipes: tuple[LPipe, ...], s: Style) -> None:
+  g = SubElement(parent, "g")
+  g.set("class", "pipes")
+  for pipe in pipes:
+    poly = SubElement(g, "polyline")
     pts = " ".join(f"{p.x},{p.y}" for p in pipe.points)
     poly.set("points", pts)
     poly.set("stroke", s.pipe_stroke)
     poly.set("stroke-width", str(s.pipe_width))
     poly.set("fill", "none")
   ##
-  g_ears = SubElement(svg, "g")
-  g_ears.set("class", "ears")
-  for box in lo.boxes:
+##
+
+def _render_ears(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
+  g = SubElement(parent, "g")
+  g.set("class", "ears")
+  for box in boxes:
     ear = box.ear
     r = s.ear_radius
-    path = SubElement(g_ears, "path")
+    path = SubElement(g, "path")
     path.set("d", f"M {ear.x},{ear.y - r} A {r},{r} 0 0 0 {ear.x},{ear.y + r} Z")
     path.set("fill", s.fill)
   ##
-  g_throats = SubElement(svg, "g")
-  g_throats.set("class", "throats")
-  for box in lo.boxes:
+##
+
+def _render_throats(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
+  g = SubElement(parent, "g")
+  g.set("class", "throats")
+  for box in boxes:
     throat = box.throat
     r = s.ear_radius
-    path = SubElement(g_throats, "path")
+    path = SubElement(g, "path")
     path.set("d", f"M {throat.x},{throat.y - r} A {r},{r} 0 0 1 {throat.x},{throat.y + r} Z")
     path.set("fill", s.fill)
   ##
-  g_applicators = SubElement(svg, "g")
-  g_applicators.set("class", "applicators")
-  for appl in lo.applicators:
-    circle = SubElement(g_applicators, "circle")
+##
+
+def _render_applicators(parent: Element, applicators: tuple[LApplicator, ...], s: Style) -> None:
+  g = SubElement(parent, "g")
+  g.set("class", "applicators")
+  for appl in applicators:
+    circle = SubElement(g, "circle")
     circle.set("cx", str(appl.center.x))
     circle.set("cy", str(appl.center.y))
     circle.set("r", str(s.ear_radius))
     circle.set("fill", s.fill)
   ##
+##
+
+def render_layout(lo: Layout, style: Style | None = None) -> str:
+  s = style or Style()
+  svg = Element("svg", xmlns=_SVG_NS)
+  svg.set("viewBox", f"0 0 {lo.width} {lo.height}")
+  svg.set("width", str(lo.width))
+  svg.set("height", str(lo.height))
+  _render_boxes(svg, lo.boxes, s)
+  _render_pipes(svg, lo.pipes, s)
+  _render_ears(svg, lo.boxes, s)
+  _render_throats(svg, lo.boxes, s)
+  _render_applicators(svg, lo.applicators, s)
   return tostring(svg, encoding="unicode")
 ##
 
