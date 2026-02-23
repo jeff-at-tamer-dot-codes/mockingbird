@@ -1,23 +1,23 @@
 import xml.etree.ElementTree as ET
 import pytest
-from mockingbird.ast import Var, Func, Appl
+from mockingbird.parser import parse
 from mockingbird.songmap import layout, render, Point
 
-IDENTITY = Func(Var(0))
-MOCKINGBIRD = Func(Appl(Var(0), Var(0)))
-DOUBLE_MOCKINGBIRD = Func(Appl(Appl(Var(0), Var(0)), Appl(Var(0), Var(0))))
-SELF_APPLY_LEFT = Func(Appl(Appl(Var(0), Var(0)), Var(0)))
-SELF_APPLY_RIGHT = Func(Appl(Var(0), Appl(Var(0), Var(0))))
-KITE = Func(Func(Var(0)))
-KESTREL = Func(Func(Var(1)))
-NESTED_01 = Func(Func(Appl(Var(0), Var(1))))
-NESTED_10 = Func(Func(Appl(Var(1), Var(0))))
-NESTED_11 = Func(Func(Appl(Var(1), Var(1))))
-NESTED_MOCKINGBIRD = Func(Func(Appl(Var(0), Var(0))))
-NESTED_DOUBLE_MOCKINGBIRD = Func(Func(Appl(Appl(Var(0), Var(0)), Appl(Var(0), Var(0)))))
-TRIPLE_VAR0 = Func(Func(Func(Var(0))))
-TRIPLE_VAR1 = Func(Func(Func(Var(1))))
-TRIPLE_VAR2 = Func(Func(Func(Var(2))))
+IDENTITY = parse(r'λ 0')
+MOCKINGBIRD = parse(r'λ 0 0')
+DOUBLE_MOCKINGBIRD = parse(r'λ 0 0 (0 0)')
+SELF_APPLY_LEFT = parse(r'λ 0 0 0')
+SELF_APPLY_RIGHT = parse(r'λ 0 (0 0)')
+KITE = parse(r'λ λ 0')
+KESTREL = parse(r'λ λ 1')
+NESTED_01 = parse(r'λ λ 0 1')
+NESTED_10 = parse(r'λ λ 1 0')
+NESTED_11 = parse(r'λ λ 1 1')
+NESTED_MOCKINGBIRD = parse(r'λ λ 0 0')
+NESTED_DOUBLE_MOCKINGBIRD = parse(r'λ λ 0 0 (0 0)')
+TRIPLE_VAR0 = parse(r'λ λ λ 0')
+TRIPLE_VAR1 = parse(r'λ λ λ 1')
+TRIPLE_VAR2 = parse(r'λ λ λ 2')
 
 # --- Identity layout tests ---
 
@@ -500,19 +500,25 @@ def test_nested_double_mockingbird_vertical_gap_is_one_row():
 
 def test_appl_raises():
   with pytest.raises(NotImplementedError):
-    layout(Appl(Var(0), Var(1)))
+    layout(parse(r'0 1'))
   ##
 ##
 
 def test_nested_func_free_var_raises():
   with pytest.raises(NotImplementedError):
-    layout(Func(Func(Appl(Var(0), Var(2)))))
+    layout(parse(r'λ λ 0 2'))
   ##
 ##
 
 def test_bare_var_raises():
   with pytest.raises(NotImplementedError):
-    layout(Var(0))
+    layout(parse(r'0'))
+  ##
+##
+
+def test_func_in_body_raises():
+  with pytest.raises(NotImplementedError):
+    layout(parse(r'λ 0 (λ 0)'))
   ##
 ##
 
@@ -1116,8 +1122,8 @@ def test_nested_11_svg_valid_xml():
 
 # --- Appl layout tests ---
 
-APPL_II = Appl(IDENTITY, IDENTITY)
-APPL_MI = Appl(MOCKINGBIRD, IDENTITY)
+APPL_II = parse(r'(λ 0) (λ 0)')
+APPL_MI = parse(r'(λ 0 0) (λ 0)')
 
 def test_appl_ii_layout_structure():
   lo = layout(APPL_II)
@@ -1213,6 +1219,6 @@ def test_appl_mi_svg_valid_xml():
 
 def test_appl_var_func_raises():
   with pytest.raises(NotImplementedError):
-    layout(Appl(Var(0), IDENTITY))
+    layout(parse(r'0 (λ 0)'))
   ##
 ##
