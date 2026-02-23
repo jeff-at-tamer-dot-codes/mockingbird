@@ -669,7 +669,7 @@ def test_kite_outer_box_dimensions():
   lo = layout(KITE)
   box = lo.boxes[0]
   assert box.rect.width == 8 * 20
-  assert box.rect.height == 5 * 20
+  assert box.rect.height == 4 * 20
 ##
 
 def test_kite_inner_box_dimensions():
@@ -677,7 +677,7 @@ def test_kite_inner_box_dimensions():
   outer = lo.boxes[0]
   inner = lo.boxes[1]
   assert inner.rect.width == outer.rect.width / 2
-  assert inner.rect.height == 3 * outer.rect.height / 5
+  assert inner.rect.height == outer.rect.height / 2
 ##
 
 def test_kite_inner_box_position():
@@ -685,7 +685,7 @@ def test_kite_inner_box_position():
   outer = lo.boxes[0]
   inner = lo.boxes[1]
   assert inner.rect.x == outer.rect.x + outer.rect.width / 4
-  assert inner.rect.y == outer.rect.y + outer.rect.height / 5
+  assert inner.rect.y == outer.rect.y + outer.rect.height / 4
 ##
 
 def test_kite_outer_ear_on_left_edge():
@@ -700,10 +700,10 @@ def test_kite_outer_throat_on_right_edge():
   assert box.throat.x == box.rect.x + box.rect.width
 ##
 
-def test_kite_outer_ear_throat_at_two_fifths():
+def test_kite_outer_ear_throat_at_one_quarter():
   lo = layout(KITE)
   box = lo.boxes[0]
-  y = box.rect.y + 2 * box.rect.height / 5
+  y = box.rect.y + box.rect.height / 4
   assert box.ear.y == y
   assert box.throat.y == y
 ##
@@ -720,11 +720,11 @@ def test_kite_inner_throat_on_inner_right_edge():
   assert inner.throat.x == inner.rect.x + inner.rect.width
 ##
 
-def test_kite_inner_ear_throat_at_three_fifths():
+def test_kite_inner_ear_throat_at_one_half():
   lo = layout(KITE)
   outer = lo.boxes[0]
   inner = lo.boxes[1]
-  y = outer.rect.y + 3 * outer.rect.height / 5
+  y = outer.rect.y + outer.rect.height / 2
   assert inner.ear.y == y
   assert inner.throat.y == y
 ##
@@ -899,8 +899,8 @@ def test_triple_var0_layout_structure():
 def test_triple_var0_outer_box_dimensions():
   lo = layout(TRIPLE_VAR0)
   box = lo.boxes[0]
-  assert box.rect.width == 10 * 20
-  assert box.rect.height == 8 * 20
+  assert box.rect.width == 12 * 20
+  assert box.rect.height == 6 * 20
 ##
 
 def test_triple_var0_box_widths():
@@ -915,25 +915,25 @@ def test_triple_var0_box_heights():
   lo = layout(TRIPLE_VAR0)
   outer = lo.boxes[0]
   assert lo.boxes[0].rect.height == outer.rect.height
-  assert lo.boxes[1].rect.height == 3 * outer.rect.height / 4
-  assert lo.boxes[2].rect.height == outer.rect.height / 2
+  assert lo.boxes[1].rect.height == 2 * outer.rect.height / 3
+  assert lo.boxes[2].rect.height == outer.rect.height / 3
 ##
 
 def test_triple_var0_box_positions():
   lo = layout(TRIPLE_VAR0)
   outer = lo.boxes[0]
   assert lo.boxes[1].rect.x == outer.rect.x + outer.rect.width / 6
-  assert lo.boxes[1].rect.y == outer.rect.y + outer.rect.height / 8
+  assert lo.boxes[1].rect.y == outer.rect.y + outer.rect.height / 6
   assert lo.boxes[2].rect.x == outer.rect.x + outer.rect.width / 3
-  assert lo.boxes[2].rect.y == outer.rect.y + outer.rect.height / 4
+  assert lo.boxes[2].rect.y == outer.rect.y + outer.rect.height / 3
 ##
 
 def test_triple_var0_ear_throat_y_positions():
   lo = layout(TRIPLE_VAR0)
   outer = lo.boxes[0]
-  assert lo.boxes[0].ear.y == outer.rect.y + 3 * outer.rect.height / 8
-  assert lo.boxes[1].ear.y == outer.rect.y + outer.rect.height / 2
-  assert lo.boxes[2].ear.y == outer.rect.y + 5 * outer.rect.height / 8
+  assert lo.boxes[0].ear.y == outer.rect.y + outer.rect.height / 6
+  assert lo.boxes[1].ear.y == outer.rect.y + outer.rect.height / 3
+  assert lo.boxes[2].ear.y == outer.rect.y + outer.rect.height / 2
 ##
 
 def test_triple_var0_pipe_counts():

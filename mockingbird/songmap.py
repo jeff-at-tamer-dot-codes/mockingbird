@@ -72,6 +72,12 @@ def _body_stats(expr: Expr) -> tuple[int, int]:
   return (fv + av, max(fd, ad) + 1)
 ##
 
+def _max_var_index(expr: Expr) -> int:
+  if isinstance(expr, Var): return expr.index
+  assert isinstance(expr, Appl)
+  return max(_max_var_index(expr.func), _max_var_index(expr.arg))
+##
+
 def _layout_body_in_box(
     body: Expr, boxes: list[LBox], throat: Point,
     box_x: float, box_y: float, box_w: float, box_h: float,
@@ -135,81 +141,15 @@ def _layout_body_in_box(
   result, _ = build(body, 0)
   if isinstance(result, int):
     var_ear = boxes[len(boxes) - 1 - var_indices[result]].ear
-    pipes.append(LPipe(points=(*_var_entry(var_ear), throat)))
+    if var_ear.x < box_x:
+      pipes.append(LPipe(points=(var_ear, Point(box_x, var_ear.y), Point(fan_x, throat.y), throat)))
+    else:
+      pipes.append(LPipe(points=(var_ear, throat)))
+    ##
   else:
     pipes.append(LPipe(points=(result.out_port, throat)))
   ##
   return (pipes, applicators)
-##
-
-def _layout_general(body: Expr, s: Style) -> Layout:
-  num_vars, depth = _body_stats(body)
-  num_cols = depth + 2
-  r = s.ear_radius
-  margin = r
-  box_w = 2 * num_cols * s.grid
-  box_h = (num_vars + 1) * s.grid
-  total_w = box_w + 2 * margin
-  total_h = box_h + 2 * margin
-  box_x = margin
-  box_y = margin
-  ear_y = box_y + num_vars * box_h / (num_vars + 1)
-  ear = Point(box_x, ear_y)
-  throat = Point(box_x + box_w, ear_y)
-  box = LBox(rect=Rect(box_x, box_y, box_w, box_h), ear=ear, throat=throat)
-  pipes, applicators = _layout_body_in_box(body, [box], throat, box_x, box_y, box_w, box_h, s)
-  return Layout(
-    width=total_w, height=total_h, boxes=(box,),
-    pipes=tuple(pipes), applicators=tuple(applicators),
-  )
-##
-
-def _layout_nested_var(depth: int, var_index: int, s: Style) -> Layout:
-  g = s.grid
-  bx = s.ear_radius
-  by = s.ear_radius
-  N = depth
-  outer_w = 2 * (N + 2) * g
-  outer_h = (3 * N - 1) * g
-  total_w = outer_w + 2 * bx
-  total_h = outer_h + 2 * by
-  boxes: list[LBox] = []
-  for i in range(N):
-    w_i = outer_w * (N - i) / N
-    x_i = bx + outer_w * i / (2 * N)
-    top_i = by + outer_h * i / (3 * N - 1)
-    h_i = outer_h * (3 * N - 1 - 2 * i) / (3 * N - 1)
-    ety = by + outer_h * (N + i) / (3 * N - 1)
-    ear = Point(x_i, ety)
-    throat = Point(x_i + w_i, ety)
-    boxes.append(LBox(rect=Rect(x_i, top_i, w_i, h_i), ear=ear, throat=throat))
-  ##
-  innermost = boxes[N - 1]
-  if var_index == 0:
-    body_pipe = LPipe(points=(innermost.ear, innermost.throat))
-  else:
-    source = boxes[N - 1 - var_index]
-    body_pipe = LPipe(points=(
-      source.ear,
-      Point(innermost.rect.x, source.ear.y),
-      Point(innermost.rect.x + innermost.rect.width / 2, innermost.throat.y),
-      innermost.throat,
-    ))
-  ##
-  pipes: list[LPipe] = [body_pipe]
-  for i in reversed(range(N - 1)):
-    mid_x = bx + outer_w * (4 * N - 2 * i - 1) / (4 * N)
-    pipes.append(LPipe(points=(
-      boxes[i + 1].throat,
-      Point(mid_x, boxes[i + 1].throat.y),
-      Point(mid_x, boxes[i].throat.y),
-      boxes[i].throat,
-    )))
-  ##
-  return Layout(
-    width=total_w, height=total_h,
-    boxes=tuple(boxes), pipes=tuple(pipes),
-  )
 ##
 
 def _layout_nested_body(depth: int, body: Expr, s: Style) -> Layout:
@@ -218,7 +158,8 @@ def _layout_nested_body(depth: int, body: Expr, s: Style) -> Layout:
   num_vars, body_depth = _body_stats(body)
   num_cols = body_depth + 2
   inner_w = 2 * num_cols * g
-  inner_h = (num_vars + 1) * g
+  max_k = _max_var_index(body)
+  inner_h = max(num_vars + 1, max_k + 2) * g
   N = depth
   gap_w = 2 * g
   outer_w = inner_w + 2 * (N - 1) * gap_w
@@ -273,14 +214,8 @@ def layout(expr: Expr, style: Style | None = None) -> Layout:
     depth += 1
     inner = inner.body
   ##
-  if depth >= 2 and isinstance(inner, Var) and 0 <= inner.index < depth:
-    return _layout_nested_var(depth, inner.index, s)
-  ##
-  if depth >= 2 and _is_closed_appl_body(inner, depth):
+  if _is_closed_appl_body(inner, depth):
     return _layout_nested_body(depth, inner, s)
-  ##
-  if _is_closed_appl_body(body, 1):
-    return _layout_general(body, s)
   ##
   raise NotImplementedError(f"layout() does not yet support: {expr}")
 ##
