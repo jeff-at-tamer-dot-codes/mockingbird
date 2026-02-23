@@ -203,11 +203,51 @@ def _layout_nested_body(depth: int, body: Expr, s: Style) -> Layout:
   )
 ##
 
+def _offset_layout(lo: Layout, dx: float, dy: float) -> Layout:
+  if dx == 0 and dy == 0: return lo
+  def pt(p: Point) -> Point:
+    return Point(p.x + dx, p.y + dy)
+  ##
+  boxes = tuple(
+    LBox(rect=Rect(b.rect.x + dx, b.rect.y + dy, b.rect.width, b.rect.height),
+         ear=pt(b.ear), throat=pt(b.throat))
+    for b in lo.boxes
+  )
+  pipes = tuple(
+    LPipe(points=tuple(pt(p) for p in pipe.points))
+    for pipe in lo.pipes
+  )
+  applicators = tuple(
+    LApplicator(center=pt(a.center), func_port=pt(a.func_port), arg_port=pt(a.arg_port), out_port=pt(a.out_port))
+    for a in lo.applicators
+  )
+  return Layout(width=lo.width, height=lo.height, boxes=boxes, pipes=pipes, applicators=applicators)
+##
+
 def layout(expr: Expr, style: Style | None = None) -> Layout:
+  s = style or Style()
+  if isinstance(expr, Appl) and isinstance(expr.func, Func) and isinstance(expr.arg, Func):
+    lo_func = layout(expr.func, s)
+    lo_arg = layout(expr.arg, s)
+    arg_throat = lo_arg.boxes[0].throat
+    func_ear = lo_func.boxes[0].ear
+    dy_arg = max(0.0, func_ear.y - arg_throat.y)
+    dy_func = max(0.0, arg_throat.y - func_ear.y)
+    dx_func = arg_throat.x + s.grid - func_ear.x
+    shifted_arg = _offset_layout(lo_arg, 0.0, dy_arg)
+    shifted_func = _offset_layout(lo_func, dx_func, dy_func)
+    wire = LPipe(points=(shifted_arg.boxes[0].throat, shifted_func.boxes[0].ear))
+    return Layout(
+      width=dx_func + lo_func.width,
+      height=max(dy_arg + lo_arg.height, dy_func + lo_func.height),
+      boxes=shifted_arg.boxes + shifted_func.boxes,
+      pipes=shifted_arg.pipes + (wire,) + shifted_func.pipes,
+      applicators=shifted_arg.applicators + shifted_func.applicators,
+    )
+  ##
   if not isinstance(expr, Func):
     raise NotImplementedError(f"layout() only supports Func expressions, got: {expr}")
   ##
-  s = style or Style()
   body = expr.body
   depth, inner = 1, body
   while isinstance(inner, Func):

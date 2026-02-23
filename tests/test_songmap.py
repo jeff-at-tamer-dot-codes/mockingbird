@@ -1113,3 +1113,106 @@ def test_nested_11_svg_valid_xml():
   svg = render(NESTED_11)
   ET.fromstring(svg)
 ##
+
+# --- Appl layout tests ---
+
+APPL_II = Appl(IDENTITY, IDENTITY)
+APPL_MI = Appl(MOCKINGBIRD, IDENTITY)
+
+def test_appl_ii_layout_structure():
+  lo = layout(APPL_II)
+  assert len(lo.boxes) == 2
+  assert len(lo.pipes) == 3
+  assert len(lo.applicators) == 0
+##
+
+def test_appl_ii_arg_left_func_right():
+  lo = layout(APPL_II)
+  arg_box = lo.boxes[0]
+  func_box = lo.boxes[1]
+  assert arg_box.throat.x < func_box.ear.x
+##
+
+def test_appl_ii_wire_connects_throat_to_ear():
+  lo = layout(APPL_II)
+  wire = lo.pipes[1]
+  assert len(wire.points) == 2
+  assert wire.points[0] == lo.boxes[0].throat
+  assert wire.points[1] == lo.boxes[1].ear
+##
+
+def test_appl_ii_wire_horizontal():
+  lo = layout(APPL_II)
+  wire = lo.pipes[1]
+  assert wire.points[0].y == wire.points[1].y
+##
+
+def test_appl_ii_wire_length():
+  lo = layout(APPL_II)
+  wire = lo.pipes[1]
+  assert wire.points[1].x - wire.points[0].x == 20.0
+##
+
+def test_appl_ii_no_vertical_shift():
+  lo = layout(APPL_II)
+  arg_box = lo.boxes[0]
+  func_box = lo.boxes[1]
+  assert arg_box.rect.y == func_box.rect.y
+##
+
+def test_appl_ii_svg_valid_xml():
+  svg = render(APPL_II)
+  ET.fromstring(svg)
+##
+
+def test_appl_mi_layout_structure():
+  lo = layout(APPL_MI)
+  assert len(lo.boxes) == 2
+  assert len(lo.pipes) == 5
+  assert len(lo.applicators) == 1
+##
+
+def test_appl_mi_arg_left_func_right():
+  lo = layout(APPL_MI)
+  arg_box = lo.boxes[0]
+  func_box = lo.boxes[1]
+  assert arg_box.throat.x < func_box.ear.x
+##
+
+def test_appl_mi_wire_horizontal():
+  lo = layout(APPL_MI)
+  wire = lo.pipes[1]
+  assert len(wire.points) == 2
+  assert wire.points[0].y == wire.points[1].y
+##
+
+def test_appl_mi_wire_length():
+  lo = layout(APPL_MI)
+  wire = lo.pipes[1]
+  assert wire.points[1].x - wire.points[0].x == 20.0
+##
+
+def test_appl_mi_vertical_alignment():
+  lo = layout(APPL_MI)
+  arg_box = lo.boxes[0]
+  func_box = lo.boxes[1]
+  assert arg_box.throat.y == func_box.ear.y
+##
+
+def test_appl_mi_identity_shifted_down():
+  lo = layout(APPL_MI)
+  arg_box = lo.boxes[0]
+  func_box = lo.boxes[1]
+  assert arg_box.rect.y > func_box.rect.y
+##
+
+def test_appl_mi_svg_valid_xml():
+  svg = render(APPL_MI)
+  ET.fromstring(svg)
+##
+
+def test_appl_var_func_raises():
+  with pytest.raises(NotImplementedError):
+    layout(Appl(Var(0), IDENTITY))
+  ##
+##
