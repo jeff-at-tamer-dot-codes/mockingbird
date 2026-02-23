@@ -1291,3 +1291,9 @@ def test_appl_iii_svg_valid_xml():
   svg = render(APPL_III)
   ET.fromstring(svg)
 ##
+
+def test_appl_func_var_raises():
+  with pytest.raises(NotImplementedError):
+    layout(parse(r'(λ 0) 0'))
+  ##
+##
