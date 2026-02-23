@@ -1224,11 +1224,10 @@ def test_appl_var_func_raises():
   ##
 ##
 
-def test_appl_left_nested_raises():
-  with pytest.raises(NotImplementedError):
-    layout(parse(r'(λ 0) (λ 0) (λ 0)'))
-  ##
-##
+## left-nested Appl constants
+APPL_LEFT_III = parse(r'(λ 0) (λ 0) (λ 0)')
+APPL_LEFT_MI_I = parse(r'(λ 0 0) (λ 0) (λ 0)')
+APPL_LEFT_IIII = parse(r'(λ 0) (λ 0) (λ 0) (λ 0)')
 
 # --- APPL_III layout tests ---
 
@@ -1296,4 +1295,123 @@ def test_appl_func_var_raises():
   with pytest.raises(NotImplementedError):
     layout(parse(r'(λ 0) 0'))
   ##
+##
+
+# --- Left-nested Appl layout tests ---
+
+def test_appl_left_iii_layout_structure():
+  lo = layout(APPL_LEFT_III)
+  assert len(lo.boxes) == 3
+  assert len(lo.pipes) == 6
+  assert len(lo.applicators) == 1
+##
+
+def test_appl_left_iii_has_output():
+  lo = layout(APPL_LEFT_III)
+  assert lo.output is not None
+  assert lo.output == lo.applicators[0].out_port
+##
+
+def test_appl_left_iii_func_wire_l_shaped():
+  lo = layout(APPL_LEFT_III)
+  func_wire = lo.pipes[-2]
+  assert len(func_wire.points) == 3
+  assert func_wire.points[0].y == func_wire.points[1].y
+  assert func_wire.points[1].x == func_wire.points[2].x
+  assert func_wire.points[-1] == lo.applicators[0].func_port
+##
+
+def test_appl_left_iii_arg_wire_horizontal():
+  lo = layout(APPL_LEFT_III)
+  arg_wire = lo.pipes[-1]
+  assert len(arg_wire.points) == 2
+  assert arg_wire.points[0].y == arg_wire.points[1].y
+  assert arg_wire.points[-1] == lo.applicators[0].arg_port
+##
+
+def test_appl_left_iii_right_alignment():
+  lo = layout(APPL_LEFT_III)
+  func_wire = lo.pipes[-2]
+  arg_wire = lo.pipes[-1]
+  assert func_wire.points[0].x == arg_wire.points[0].x
+##
+
+def test_appl_left_iii_applicator_position():
+  lo = layout(APPL_LEFT_III)
+  appl = lo.applicators[0]
+  g = 20.0
+  r = 8.0
+  func_wire = lo.pipes[-2]
+  aligned_x = func_wire.points[0].x
+  assert appl.center.x == aligned_x + g
+  arg_wire = lo.pipes[-1]
+  assert appl.center.y == arg_wire.points[0].y
+  assert appl.func_port == Point(appl.center.x, appl.center.y - r)
+  assert appl.arg_port == Point(appl.center.x - r, appl.center.y)
+  assert appl.out_port == Point(appl.center.x + r, appl.center.y)
+##
+
+def test_appl_left_iii_top_above_bottom():
+  lo = layout(APPL_LEFT_III)
+  func_wire = lo.pipes[-2]
+  arg_wire = lo.pipes[-1]
+  assert func_wire.points[0].y < arg_wire.points[0].y
+##
+
+def test_appl_left_iii_svg_valid_xml():
+  svg = render(APPL_LEFT_III)
+  ET.fromstring(svg)
+##
+
+def test_appl_left_mi_i_layout_structure():
+  lo = layout(APPL_LEFT_MI_I)
+  assert len(lo.boxes) == 3
+  assert len(lo.pipes) == 8
+  assert len(lo.applicators) == 2
+##
+
+def test_appl_left_mi_i_has_output():
+  lo = layout(APPL_LEFT_MI_I)
+  assert lo.output is not None
+  assert lo.output == lo.applicators[-1].out_port
+##
+
+def test_appl_left_mi_i_svg_valid_xml():
+  svg = render(APPL_LEFT_MI_I)
+  ET.fromstring(svg)
+##
+
+def test_appl_left_iiii_layout_structure():
+  lo = layout(APPL_LEFT_IIII)
+  assert len(lo.boxes) == 4
+  assert len(lo.pipes) == 9
+  assert len(lo.applicators) == 2
+##
+
+def test_appl_left_iiii_has_output():
+  lo = layout(APPL_LEFT_IIII)
+  assert lo.output is not None
+  assert lo.output == lo.applicators[-1].out_port
+##
+
+def test_appl_left_iiii_recursive_func_wire():
+  lo = layout(APPL_LEFT_IIII)
+  func_wire = lo.pipes[-2]
+  assert len(func_wire.points) == 3
+  assert func_wire.points[0].y == func_wire.points[1].y
+  assert func_wire.points[1].x == func_wire.points[2].x
+  assert func_wire.points[-1] == lo.applicators[-1].func_port
+##
+
+def test_appl_left_iiii_recursive_arg_wire():
+  lo = layout(APPL_LEFT_IIII)
+  arg_wire = lo.pipes[-1]
+  assert len(arg_wire.points) == 2
+  assert arg_wire.points[0].y == arg_wire.points[1].y
+  assert arg_wire.points[-1] == lo.applicators[-1].arg_port
+##
+
+def test_appl_left_iiii_svg_valid_xml():
+  svg = render(APPL_LEFT_IIII)
+  ET.fromstring(svg)
 ##

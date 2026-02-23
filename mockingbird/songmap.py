@@ -54,6 +54,7 @@ class Layout:
   boxes: tuple[LBox, ...]
   pipes: tuple[LPipe, ...]
   applicators: tuple[LApplicator, ...] = ()
+  output: Point | None = None
 ##
 
 _SVG_NS = "http://www.w3.org/2000/svg"
@@ -221,10 +222,85 @@ def _offset_layout(lo: Layout, dx: float, dy: float) -> Layout:
     LApplicator(center=pt(a.center), func_port=pt(a.func_port), arg_port=pt(a.arg_port), out_port=pt(a.out_port))
     for a in lo.applicators
   )
-  return Layout(width=lo.width, height=lo.height, boxes=boxes, pipes=pipes, applicators=applicators)
+  output = pt(lo.output) if lo.output is not None else None
+  return Layout(width=lo.width, height=lo.height, boxes=boxes, pipes=pipes, applicators=applicators, output=output)
+##
+
+def _output_point(lo: Layout) -> Point:
+  if lo.output is not None: return lo.output
+  return max(lo.boxes, key=lambda b: b.throat.x).throat
+##
+
+def _collect_element_rects(lo: Layout, dx: float, dy: float, r: float) -> list[Rect]:
+  rects: list[Rect] = []
+  for box in lo.boxes:
+    rects.append(Rect(box.rect.x + dx, box.rect.y + dy, box.rect.width, box.rect.height))
+    rects.append(Rect(box.ear.x - r + dx, box.ear.y - r + dy, r, 2 * r))
+    rects.append(Rect(box.throat.x + dx, box.throat.y - r + dy, r, 2 * r))
+  ##
+  for appl in lo.applicators:
+    rects.append(Rect(appl.center.x - r + dx, appl.center.y - r + dy, 2 * r, 2 * r))
+  ##
+  return rects
+##
+
+def _find_min_vertical_gap(lo_top: Layout, dx_top: float, lo_bot: Layout, dx_bot: float, s: Style) -> float:
+  r = s.ear_radius
+  g = s.grid
+  top_rects = _collect_element_rects(lo_top, dx_top, 0.0, r)
+  bot_rects = _collect_element_rects(lo_bot, dx_bot, 0.0, r)
+  min_dy = 0.0
+  for tr in top_rects:
+    for br in bot_rects:
+      if tr.x < br.x + br.width and br.x < tr.x + tr.width:
+        needed = tr.y + tr.height + g - br.y
+        if needed > min_dy: min_dy = needed
+      ##
+    ##
+  ##
+  return min_dy
+##
+
+def _layout_left_appl(expr: Appl, s: Style) -> Layout:
+  g = s.grid
+  r = s.ear_radius
+  lo_top = layout(expr.func, s)
+  lo_bot = layout(expr.arg, s)
+  top_out = _output_point(lo_top)
+  bot_out = _output_point(lo_bot)
+  max_out_x = max(top_out.x, bot_out.x)
+  dx_top = max_out_x - top_out.x
+  dx_bot = max_out_x - bot_out.x
+  dy_bot = _find_min_vertical_gap(lo_top, dx_top, lo_bot, dx_bot, s)
+  sh_top = _offset_layout(lo_top, dx_top, 0.0)
+  sh_bot = _offset_layout(lo_bot, dx_bot, dy_bot)
+  top_out_shifted = Point(top_out.x + dx_top, top_out.y)
+  bot_out_shifted = Point(bot_out.x + dx_bot, bot_out.y + dy_bot)
+  appl_cx = max_out_x + g
+  appl_cy = bot_out_shifted.y
+  appl = LApplicator(
+    center=Point(appl_cx, appl_cy),
+    func_port=Point(appl_cx, appl_cy - r),
+    arg_port=Point(appl_cx - r, appl_cy),
+    out_port=Point(appl_cx + r, appl_cy),
+  )
+  func_wire = LPipe(points=(top_out_shifted, Point(appl_cx, top_out_shifted.y), appl.func_port))
+  arg_wire = LPipe(points=(bot_out_shifted, appl.arg_port))
+  width = max(dx_top + lo_top.width, dx_bot + lo_bot.width, appl_cx + r)
+  height = max(lo_top.height, dy_bot + lo_bot.height)
+  return Layout(
+    width=width, height=height,
+    boxes=sh_top.boxes + sh_bot.boxes,
+    pipes=sh_top.pipes + sh_bot.pipes + (func_wire, arg_wire),
+    applicators=sh_top.applicators + sh_bot.applicators + (appl,),
+    output=appl.out_port,
+  )
 ##
 
 def _layout_appl(expr: Appl, s: Style) -> Layout:
+  if isinstance(expr.func, Appl):
+    return _layout_left_appl(expr, s)
+  ##
   terms: list[Func] = []
   current: Expr = expr
   while isinstance(current, Appl):
