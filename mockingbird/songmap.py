@@ -225,25 +225,47 @@ def _offset_layout(lo: Layout, dx: float, dy: float) -> Layout:
 ##
 
 def _layout_appl(expr: Appl, s: Style) -> Layout:
-  if not (isinstance(expr.func, Func) and isinstance(expr.arg, Func)):
-    raise NotImplementedError(f"layout() only supports Appl of two Func expressions, got: {expr}")
+  terms: list[Func] = []
+  current: Expr = expr
+  while isinstance(current, Appl):
+    if not isinstance(current.func, Func):
+      raise NotImplementedError(f"layout() only supports right-nested Appl of Func terms, got: {expr}")
+    ##
+    terms.append(current.func)
+    current = current.arg
   ##
-  lo_func = layout(expr.func, s)
-  lo_arg = layout(expr.arg, s)
-  arg_throat = lo_arg.boxes[0].throat
-  func_ear = lo_func.boxes[0].ear
-  dy_arg = max(0.0, func_ear.y - arg_throat.y)
-  dy_func = max(0.0, arg_throat.y - func_ear.y)
-  dx_func = arg_throat.x + s.grid - func_ear.x
-  shifted_arg = _offset_layout(lo_arg, 0.0, dy_arg)
-  shifted_func = _offset_layout(lo_func, dx_func, dy_func)
-  wire = LPipe(points=(shifted_arg.boxes[0].throat, shifted_func.boxes[0].ear))
+  if not isinstance(current, Func):
+    raise NotImplementedError(f"layout() only supports right-nested Appl of Func terms, got: {expr}")
+  ##
+  terms.append(current)
+  terms.reverse()
+  layouts = [layout(term, s) for term in terms]
+  conn_ys = [lo.boxes[0].ear.y for lo in layouts]
+  max_y = max(conn_ys)
+  dys = [max_y - cy for cy in conn_ys]
+  dxs: list[float] = [0.0]
+  for i in range(1, len(layouts)):
+    prev_throat_x = dxs[i - 1] + layouts[i - 1].boxes[0].throat.x
+    dxs.append(prev_throat_x + s.grid - layouts[i].boxes[0].ear.x)
+  ##
+  shifted = [_offset_layout(layouts[i], dxs[i], dys[i]) for i in range(len(layouts))]
+  all_boxes: tuple[LBox, ...] = ()
+  all_pipes: tuple[LPipe, ...] = ()
+  all_applicators: tuple[LApplicator, ...] = ()
+  for i, sh in enumerate(shifted):
+    all_boxes += sh.boxes
+    all_pipes += sh.pipes
+    if i < len(shifted) - 1:
+      all_pipes += (LPipe(points=(sh.boxes[0].throat, shifted[i + 1].boxes[0].ear)),)
+    ##
+    all_applicators += sh.applicators
+  ##
+  total_width = dxs[-1] + layouts[-1].width
+  total_height = max(dys[i] + layouts[i].height for i in range(len(layouts)))
   return Layout(
-    width=dx_func + lo_func.width,
-    height=max(dy_arg + lo_arg.height, dy_func + lo_func.height),
-    boxes=shifted_arg.boxes + shifted_func.boxes,
-    pipes=shifted_arg.pipes + (wire,) + shifted_func.pipes,
-    applicators=shifted_arg.applicators + shifted_func.applicators,
+    width=total_width, height=total_height,
+    boxes=all_boxes, pipes=all_pipes,
+    applicators=all_applicators,
   )
 ##
 

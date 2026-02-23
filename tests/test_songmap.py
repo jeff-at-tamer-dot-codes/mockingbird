@@ -1124,6 +1124,7 @@ def test_nested_11_svg_valid_xml():
 
 APPL_II = parse(r'(λ 0) (λ 0)')
 APPL_MI = parse(r'(λ 0 0) (λ 0)')
+APPL_III = parse(r'(λ 0) ((λ 0) (λ 0))')
 
 def test_appl_ii_layout_structure():
   lo = layout(APPL_II)
@@ -1221,4 +1222,72 @@ def test_appl_var_func_raises():
   with pytest.raises(NotImplementedError):
     layout(parse(r'0 (λ 0)'))
   ##
+##
+
+def test_appl_left_nested_raises():
+  with pytest.raises(NotImplementedError):
+    layout(parse(r'(λ 0) (λ 0) (λ 0)'))
+  ##
+##
+
+# --- APPL_III layout tests ---
+
+def test_appl_iii_layout_structure():
+  lo = layout(APPL_III)
+  assert len(lo.boxes) == 3
+  assert len(lo.pipes) == 5
+  assert len(lo.applicators) == 0
+##
+
+def test_appl_iii_left_to_right():
+  lo = layout(APPL_III)
+  for i in range(len(lo.boxes) - 1):
+    assert lo.boxes[i].throat.x < lo.boxes[i + 1].ear.x
+  ##
+##
+
+def test_appl_iii_wires_connect_adjacent():
+  lo = layout(APPL_III)
+  wire0 = lo.pipes[1]
+  assert wire0.points[0] == lo.boxes[0].throat
+  assert wire0.points[1] == lo.boxes[1].ear
+  wire1 = lo.pipes[3]
+  assert wire1.points[0] == lo.boxes[1].throat
+  assert wire1.points[1] == lo.boxes[2].ear
+##
+
+def test_appl_iii_wires_horizontal():
+  lo = layout(APPL_III)
+  wire0 = lo.pipes[1]
+  assert wire0.points[0].y == wire0.points[1].y
+  wire1 = lo.pipes[3]
+  assert wire1.points[0].y == wire1.points[1].y
+##
+
+def test_appl_iii_wire_lengths():
+  lo = layout(APPL_III)
+  wire0 = lo.pipes[1]
+  assert wire0.points[1].x - wire0.points[0].x == 20.0
+  wire1 = lo.pipes[3]
+  assert wire1.points[1].x - wire1.points[0].x == 20.0
+##
+
+def test_appl_iii_no_vertical_shift():
+  lo = layout(APPL_III)
+  y0 = lo.boxes[0].rect.y
+  for box in lo.boxes[1:]:
+    assert box.rect.y == y0
+  ##
+##
+
+def test_appl_iii_total_width():
+  single = layout(IDENTITY)
+  lo = layout(APPL_III)
+  spacing = single.boxes[0].throat.x + 20.0 - single.boxes[0].ear.x
+  assert lo.width == single.width + 2 * spacing
+##
+
+def test_appl_iii_svg_valid_xml():
+  svg = render(APPL_III)
+  ET.fromstring(svg)
 ##
