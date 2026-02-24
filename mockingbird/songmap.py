@@ -22,7 +22,6 @@ class Rect:
 @dataclass(frozen=True, slots=True)
 class Style:
   grid: float = 20.0
-  box_padding: float = 1.0
   ear_radius: float = 8.0
   pipe_width: float = 2.0
   box_stroke: str = "#000"

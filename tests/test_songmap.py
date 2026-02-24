@@ -26,6 +26,7 @@ APPL_LEFT_MI_I = parse(r'(λ 0 0) (λ 0) (λ 0)')
 APPL_LEFT_IIII = parse(r'(λ 0) (λ 0) (λ 0) (λ 0)')
 FUNC_APPL_II = parse(r'λ (λ 0) (λ 0)')
 FUNC_APPL_LEFT_III = parse(r'λ (λ 0) (λ 0) (λ 0)')
+FUNC2_APPL_II = parse(r'λ λ (λ 0) (λ 0)')
 
 class TestIdentity:
   @pytest.fixture(autouse=True)
@@ -1284,6 +1285,43 @@ class TestFuncApplLeftIII:
   ##
   def test_svg_valid_xml(self):
     svg = render(FUNC_APPL_LEFT_III)
+    ET.fromstring(svg)
+  ##
+##
+
+class TestFunc2ApplII:
+  @pytest.fixture(autouse=True)
+  def _layout(self):
+    self.lo = layout(FUNC2_APPL_II)
+  ##
+  def test_layout_structure(self):
+    assert len(self.lo.boxes) == 4
+    assert len(self.lo.pipes) == 5
+    assert len(self.lo.applicators) == 0
+  ##
+  def test_two_wrapping_boxes_surround_inner(self):
+    outer = self.lo.boxes[0]
+    middle = self.lo.boxes[1]
+    for inner in self.lo.boxes[2:]:
+      assert outer.rect.x < middle.rect.x < inner.rect.x
+      assert outer.rect.y < middle.rect.y <= inner.rect.y
+      assert inner.rect.x + inner.rect.width < middle.rect.x + middle.rect.width
+      assert middle.rect.x + middle.rect.width < outer.rect.x + outer.rect.width
+    ##
+  ##
+  def test_throat_pipe_inner_to_middle(self):
+    pipe = self.lo.pipes[3]
+    assert len(pipe.points) == 4
+    assert pipe.points[-1] == self.lo.boxes[1].throat
+  ##
+  def test_throat_pipe_middle_to_outer(self):
+    pipe = self.lo.pipes[4]
+    assert len(pipe.points) == 4
+    assert pipe.points[0] == self.lo.boxes[1].throat
+    assert pipe.points[-1] == self.lo.boxes[0].throat
+  ##
+  def test_svg_valid_xml(self):
+    svg = render(FUNC2_APPL_II)
     ET.fromstring(svg)
   ##
 ##
