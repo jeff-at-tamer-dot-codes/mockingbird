@@ -9,6 +9,9 @@ class Point:
   def offset(self, dx: float, dy: float) -> 'Point':
     return Point(self.x + dx, self.y + dy)
   ##
+  def scale(self, factor: float) -> 'Point':
+    return Point(self.x * factor, self.y * factor)
+  ##
 ##
 
 @dataclass(frozen=True, slots=True)
@@ -21,8 +24,7 @@ class Rect:
 
 @dataclass(frozen=True, slots=True)
 class Style:
-  grid: float = 20.0
-  ear_radius: float = 10.0
+  grid: float = 10.0
   pipe_width: float = 2.0
   box_stroke: str = "#000"
   pipe_stroke: str = "#000"
@@ -41,6 +43,13 @@ class LBox:
       throat=self.throat.offset(dx, dy),
     )
   ##
+  def scale(self, factor: float) -> 'LBox':
+    return LBox(
+      rect=Rect(self.rect.x * factor, self.rect.y * factor, self.rect.width * factor, self.rect.height * factor),
+      ear=self.ear.scale(factor),
+      throat=self.throat.scale(factor),
+    )
+  ##
 ##
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +57,9 @@ class LPipe:
   points: tuple[Point, ...]
   def offset(self, dx: float, dy: float) -> 'LPipe':
     return LPipe(points=tuple(p.offset(dx, dy) for p in self.points))
+  ##
+  def scale(self, factor: float) -> 'LPipe':
+    return LPipe(points=tuple(p.scale(factor) for p in self.points))
   ##
 ##
 
@@ -74,6 +86,14 @@ class LApplicator:
       out_port=self.out_port.offset(dx, dy),
     )
   ##
+  def scale(self, factor: float) -> 'LApplicator':
+    return LApplicator(
+      center=self.center.scale(factor),
+      func_port=self.func_port.scale(factor),
+      arg_port=self.arg_port.scale(factor),
+      out_port=self.out_port.scale(factor),
+    )
+  ##
 ##
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +111,15 @@ class Layout:
       pipes=tuple(p.offset(dx, dy) for p in self.pipes),
       applicators=tuple(a.offset(dx, dy) for a in self.applicators),
       output=self.output.offset(dx, dy) if self.output is not None else None,
+    )
+  ##
+  def scale(self, factor: float) -> 'Layout':
+    return Layout(
+      width=self.width * factor, height=self.height * factor,
+      boxes=tuple(b.scale(factor) for b in self.boxes),
+      pipes=tuple(p.scale(factor) for p in self.pipes),
+      applicators=tuple(a.scale(factor) for a in self.applicators),
+      output=self.output.scale(factor) if self.output is not None else None,
     )
   ##
 ##
@@ -121,20 +150,19 @@ class _BodyBuilder:
   def __init__(
       self, body: Expr, boxes: list[LBox], throat: Point,
       box_x: float, box_y: float, box_w: float, box_h: float,
-      s: Style,
   ) -> None:
     self._body = body
     self._boxes = boxes
     self._throat = throat
     self._box_x = box_x
-    self._r = s.ear_radius
+    self._r = 1
     num_vars, depth = _body_stats(body)
     self._num_cols = depth + 2
     self._box_w = box_w
     self._box_h = box_h
     self._box_y = box_y
     self._num_vars = num_vars
-    self._num_rows = int(box_h / s.grid)
+    self._num_rows = int(box_h / 2)
     self._row_offset = self._num_rows - num_vars - 1
     self._fan_x = self._col_x(1)
     self.pipes: list[LPipe] = []
@@ -207,36 +235,33 @@ class _BodyBuilder:
 def _layout_body_in_box(
     body: Expr, boxes: list[LBox], throat: Point,
     box_x: float, box_y: float, box_w: float, box_h: float,
-    s: Style,
 ) -> tuple[list[LPipe], list[LApplicator]]:
-  return _BodyBuilder(body, boxes, throat, box_x, box_y, box_w, box_h, s).run()
+  return _BodyBuilder(body, boxes, throat, box_x, box_y, box_w, box_h).run()
 ##
 
-def _layout_nested_body(depth: int, body: Expr, s: Style) -> Layout:
-  g = s.grid
-  r = s.ear_radius
+def _layout_nested_body(depth: int, body: Expr) -> Layout:
   num_vars, body_depth = _body_stats(body)
   num_cols = body_depth + 2
-  inner_w = 2 * num_cols * g
+  inner_w = 4 * num_cols
   max_k = _max_var_index(body)
-  inner_h = max(num_vars + 1, max_k + 2) * g
+  inner_h = 2 * max(num_vars + 1, max_k + 2)
   N = depth
-  gap_w = 2 * g
+  gap_w = 4
   outer_w = inner_w + 2 * (N - 1) * gap_w
-  outer_h = inner_h + 2 * (N - 1) * g
-  bx = r
-  by = r
+  outer_h = inner_h + 4 * (N - 1)
+  bx = 1
+  by = 1
   total_w = outer_w + 2 * bx
   total_h = outer_h + 2 * by
-  inner_top = by + (N - 1) * g
-  inner_ear_y = inner_top + inner_h - g
+  inner_top = 1 + 2 * (N - 1)
+  inner_ear_y = inner_top + inner_h - 2
   boxes: list[LBox] = []
   for i in range(N):
     w_i = inner_w + 2 * (N - 1 - i) * gap_w
     x_i = bx + i * gap_w
-    top_i = by + i * g
-    h_i = inner_h + 2 * (N - 1 - i) * g
-    ety = inner_ear_y - (N - 1 - i) * g
+    top_i = 1 + i * 2
+    h_i = inner_h + 4 * (N - 1 - i)
+    ety = inner_ear_y - 2 * (N - 1 - i)
     ear = Point(x_i, ety)
     throat = Point(x_i + w_i, ety)
     boxes.append(LBox(rect=Rect(x_i, top_i, w_i, h_i), ear=ear, throat=throat))
@@ -244,7 +269,7 @@ def _layout_nested_body(depth: int, body: Expr, s: Style) -> Layout:
   innermost = boxes[N - 1]
   body_pipes, applicators = _layout_body_in_box(
     body, boxes, innermost.throat,
-    innermost.rect.x, innermost.rect.y, innermost.rect.width, innermost.rect.height, s,
+    innermost.rect.x, innermost.rect.y, innermost.rect.width, innermost.rect.height,
   )
   pipes: list[LPipe] = list(body_pipes)
   for i in reversed(range(N - 1)):
@@ -273,29 +298,27 @@ def _output_point(lo: Layout) -> Point:
   return max(lo.boxes, key=lambda b: b.throat.x).throat
 ##
 
-def _collect_element_rects(lo: Layout, dx: float, dy: float, r: float) -> list[Rect]:
+def _collect_element_rects(lo: Layout, dx: float, dy: float) -> list[Rect]:
   rects: list[Rect] = []
   for box in lo.boxes:
     rects.append(Rect(box.rect.x + dx, box.rect.y + dy, box.rect.width, box.rect.height))
-    rects.append(Rect(box.ear.x - r + dx, box.ear.y - r + dy, r, 2 * r))
-    rects.append(Rect(box.throat.x + dx, box.throat.y - r + dy, r, 2 * r))
+    rects.append(Rect(box.ear.x - 1 + dx, box.ear.y - 1 + dy, 1, 2))
+    rects.append(Rect(box.throat.x + dx, box.throat.y - 1 + dy, 1, 2))
   ##
   for appl in lo.applicators:
-    rects.append(Rect(appl.center.x - r + dx, appl.center.y - r + dy, 2 * r, 2 * r))
+    rects.append(Rect(appl.center.x - 1 + dx, appl.center.y - 1 + dy, 2, 2))
   ##
   return rects
 ##
 
-def _find_min_vertical_gap(lo_top: Layout, dx_top: float, lo_bot: Layout, dx_bot: float, s: Style) -> float:
-  r = s.ear_radius
-  g = s.grid
-  top_rects = _collect_element_rects(lo_top, dx_top, 0.0, r)
-  bot_rects = _collect_element_rects(lo_bot, dx_bot, 0.0, r)
+def _find_min_vertical_gap(lo_top: Layout, dx_top: float, lo_bot: Layout, dx_bot: float) -> float:
+  top_rects = _collect_element_rects(lo_top, dx_top, 0.0)
+  bot_rects = _collect_element_rects(lo_bot, dx_bot, 0.0)
   min_dy = 0.0
   for tr in top_rects:
     for br in bot_rects:
       if tr.x < br.x + br.width and br.x < tr.x + tr.width:
-        needed = tr.y + tr.height + g - br.y
+        needed = tr.y + tr.height + 2 - br.y
         if needed > min_dy: min_dy = needed
       ##
     ##
@@ -303,29 +326,27 @@ def _find_min_vertical_gap(lo_top: Layout, dx_top: float, lo_bot: Layout, dx_bot
   return min_dy
 ##
 
-def _layout_func_wrapping(depth: int, inner_lo: Layout, s: Style) -> Layout:
-  g = s.grid
-  r = s.ear_radius
+def _layout_func_wrapping(depth: int, inner_lo: Layout) -> Layout:
   N = depth
-  margin_x = r
-  margin_y = r
-  gap_w = 2 * g
+  margin_x = 1
+  margin_y = 1
+  gap_w = 4
   inner_out = _output_point(inner_lo)
   is_throat_output = inner_lo.output is None
-  right_pad = gap_w if is_throat_output else g - r
-  innermost_w = (gap_w - r) + max(inner_out.x + right_pad, inner_lo.width)
-  innermost_h = inner_lo.height + 2 * (g - r)
-  inner_dx = N * gap_w
-  inner_dy = N * g
-  case_offset = -g if is_throat_output else 0
+  right_pad = 4 if is_throat_output else 1
+  innermost_w = 3 + max(inner_out.x + right_pad, inner_lo.width)
+  innermost_h = inner_lo.height + 2
+  inner_dx = N * 4
+  inner_dy = N * 2
+  case_offset = -2 if is_throat_output else 0
   innermost_throat_y = inner_out.y + inner_dy + case_offset
   boxes: list[LBox] = []
   for i in range(N):
     box_w = innermost_w + 2 * (N - 1 - i) * gap_w
-    box_h = innermost_h + 2 * (N - 1 - i) * g
+    box_h = innermost_h + 4 * (N - 1 - i)
     box_x = margin_x + i * gap_w
-    box_y = margin_y + i * g
-    throat_y = innermost_throat_y - (N - 1 - i) * g
+    box_y = 1 + i * 2
+    throat_y = innermost_throat_y - (N - 1 - i) * 2
     ear = Point(box_x, throat_y)
     throat = Point(box_x + box_w, throat_y)
     boxes.append(LBox(rect=Rect(box_x, box_y, box_w, box_h), ear=ear, throat=throat))
@@ -355,7 +376,7 @@ def _layout_func_wrapping(depth: int, inner_lo: Layout, s: Style) -> Layout:
     )))
   ##
   outermost_w = innermost_w + 2 * (N - 1) * gap_w
-  outermost_h = innermost_h + 2 * (N - 1) * g
+  outermost_h = innermost_h + 4 * (N - 1)
   total_w = 2 * margin_x + outermost_w
   total_h = 2 * margin_y + outermost_h
   return Layout(
@@ -366,27 +387,25 @@ def _layout_func_wrapping(depth: int, inner_lo: Layout, s: Style) -> Layout:
   )
 ##
 
-def _layout_left_appl(expr: Appl, s: Style) -> Layout:
-  g = s.grid
-  r = s.ear_radius
-  lo_top = layout(expr.func, s)
-  lo_bot = layout(expr.arg, s)
+def _layout_left_appl(expr: Appl) -> Layout:
+  lo_top = _layout(expr.func)
+  lo_bot = _layout(expr.arg)
   top_out = _output_point(lo_top)
   bot_out = _output_point(lo_bot)
   max_out_x = max(top_out.x, bot_out.x)
   dx_top = max_out_x - top_out.x
   dx_bot = max_out_x - bot_out.x
-  dy_bot = _find_min_vertical_gap(lo_top, dx_top, lo_bot, dx_bot, s)
+  dy_bot = _find_min_vertical_gap(lo_top, dx_top, lo_bot, dx_bot)
   sh_top = _offset_layout(lo_top, dx_top, 0.0)
   sh_bot = _offset_layout(lo_bot, dx_bot, dy_bot)
   top_out_shifted = Point(top_out.x + dx_top, top_out.y)
   bot_out_shifted = Point(bot_out.x + dx_bot, bot_out.y + dy_bot)
-  appl_cx = max_out_x + g
+  appl_cx = max_out_x + 2
   appl_cy = bot_out_shifted.y
-  appl = LApplicator.from_center(appl_cx, appl_cy, r)
+  appl = LApplicator.from_center(appl_cx, appl_cy, 1)
   func_wire = LPipe(points=(top_out_shifted, Point(appl_cx, top_out_shifted.y), appl.func_port))
   arg_wire = LPipe(points=(bot_out_shifted, appl.arg_port))
-  width = max(dx_top + lo_top.width, dx_bot + lo_bot.width, appl_cx + r)
+  width = max(dx_top + lo_top.width, dx_bot + lo_bot.width, appl_cx + 1)
   height = max(lo_top.height, dy_bot + lo_bot.height)
   return Layout(
     width=width, height=height,
@@ -397,7 +416,7 @@ def _layout_left_appl(expr: Appl, s: Style) -> Layout:
   )
 ##
 
-def _layout_right_appl_chain(expr: Appl, s: Style) -> Layout:
+def _layout_right_appl_chain(expr: Appl) -> Layout:
   terms: list[Func] = []
   current: Expr = expr
   while isinstance(current, Appl):
@@ -412,14 +431,14 @@ def _layout_right_appl_chain(expr: Appl, s: Style) -> Layout:
   ##
   terms.append(current)
   terms.reverse()
-  layouts = [layout(term, s) for term in terms]
+  layouts = [_layout(term) for term in terms]
   conn_ys = [lo.boxes[0].ear.y for lo in layouts]
   max_y = max(conn_ys)
   dys = [max_y - cy for cy in conn_ys]
   dxs: list[float] = [0.0]
   for i in range(1, len(layouts)):
     prev_throat_x = dxs[i - 1] + layouts[i - 1].boxes[0].throat.x
-    dxs.append(prev_throat_x + s.grid - layouts[i].boxes[0].ear.x)
+    dxs.append(prev_throat_x + 2 - layouts[i].boxes[0].ear.x)
   ##
   shifted = [_offset_layout(layouts[i], dxs[i], dys[i]) for i in range(len(layouts))]
   all_boxes: tuple[LBox, ...] = ()
@@ -442,17 +461,16 @@ def _layout_right_appl_chain(expr: Appl, s: Style) -> Layout:
   )
 ##
 
-def _layout_appl(expr: Appl, s: Style) -> Layout:
+def _layout_appl(expr: Appl) -> Layout:
   if isinstance(expr.func, Appl):
-    return _layout_left_appl(expr, s)
+    return _layout_left_appl(expr)
   ##
-  return _layout_right_appl_chain(expr, s)
+  return _layout_right_appl_chain(expr)
 ##
 
-def layout(expr: Expr, style: Style | None = None) -> Layout:
-  s = style or Style()
+def _layout(expr: Expr) -> Layout:
   if isinstance(expr, Appl):
-    return _layout_appl(expr, s)
+    return _layout_appl(expr)
   ##
   if not isinstance(expr, Func):
     raise NotImplementedError(f"layout() only supports Func expressions, got: {expr}")
@@ -464,13 +482,18 @@ def layout(expr: Expr, style: Style | None = None) -> Layout:
     inner = inner.body
   ##
   if _is_closed_appl_body(inner, depth):
-    return _layout_nested_body(depth, inner, s)
+    return _layout_nested_body(depth, inner)
   ##
   if isinstance(inner, Appl) and not any(inner.is_free(i) for i in range(depth)):
-    inner_lo = layout(inner, s)
-    return _layout_func_wrapping(depth, inner_lo, s)
+    inner_lo = _layout(inner)
+    return _layout_func_wrapping(depth, inner_lo)
   ##
   raise NotImplementedError(f"layout() does not yet support: {expr}")
+##
+
+def layout(expr: Expr, style: Style | None = None) -> Layout:
+  s = style or Style()
+  return _layout(expr).scale(s.grid)
 ##
 
 def _render_boxes(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
@@ -508,7 +531,7 @@ def _render_ears(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
   g.set("class", "ears")
   for box in boxes:
     ear = box.ear
-    r = s.ear_radius
+    r = s.grid
     path = SubElement(g, "path")
     path.set("d", f"M {ear.x},{ear.y - r} A {r},{r} 0 0 0 {ear.x},{ear.y + r} Z")
     path.set("fill", s.fill)
@@ -520,7 +543,7 @@ def _render_throats(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
   g.set("class", "throats")
   for box in boxes:
     throat = box.throat
-    r = s.ear_radius
+    r = s.grid
     path = SubElement(g, "path")
     path.set("d", f"M {throat.x},{throat.y - r} A {r},{r} 0 0 1 {throat.x},{throat.y + r} Z")
     path.set("fill", s.fill)
@@ -534,7 +557,7 @@ def _render_applicators(parent: Element, applicators: tuple[LApplicator, ...], s
     circle = SubElement(g, "circle")
     circle.set("cx", str(appl.center.x))
     circle.set("cy", str(appl.center.y))
-    circle.set("r", str(s.ear_radius))
+    circle.set("r", str(s.grid))
     circle.set("fill", s.fill)
   ##
 ##
