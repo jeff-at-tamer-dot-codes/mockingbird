@@ -1338,10 +1338,10 @@ class TestTripleAppl02:
     assert len(self.lo.pipes) == 5
     assert len(self.lo.applicators) == 1
   ##
-  def test_applicator_inside_innermost_box(self):
+  def test_applicator_y_equals_innermost_throat_y(self):
     innermost = self.lo.boxes[2]
     appl = self.lo.applicators[0]
-    assert innermost.rect.y < appl.center.y < innermost.rect.y + innermost.rect.height
+    assert appl.center.y == innermost.throat.y
   ##
   def test_applicator_grid_aligned(self):
     innermost = self.lo.boxes[2]

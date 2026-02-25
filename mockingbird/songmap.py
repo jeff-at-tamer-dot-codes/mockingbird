@@ -22,7 +22,7 @@ class Rect:
 @dataclass(frozen=True, slots=True)
 class Style:
   grid: float = 20.0
-  ear_radius: float = 8.0
+  ear_radius: float = 10.0
   pipe_width: float = 2.0
   box_stroke: str = "#000"
   pipe_stroke: str = "#000"
@@ -135,6 +135,7 @@ class _BodyBuilder:
     self._box_y = box_y
     self._num_vars = num_vars
     self._num_rows = int(box_h / s.grid)
+    self._row_offset = self._num_rows - num_vars - 1
     self._fan_x = self._col_x(1)
     self.pipes: list[LPipe] = []
     self.applicators: list[LApplicator] = []
@@ -145,7 +146,7 @@ class _BodyBuilder:
     return self._box_x + i * self._box_w / self._num_cols
   ##
   def _row_y(self, i: int) -> float:
-    return self._box_y + (i + 1) * self._box_h / self._num_rows
+    return self._box_y + (i + 1 + self._row_offset) * self._box_h / self._num_rows
   ##
   def _var_entry(self, var_ear: Point) -> tuple[Point, ...]:
     if var_ear.x < self._box_x: return (var_ear, Point(self._box_x, var_ear.y))
