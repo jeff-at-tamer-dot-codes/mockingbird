@@ -27,6 +27,7 @@ APPL_LEFT_IIII = parse(r'(λ 0) (λ 0) (λ 0) (λ 0)')
 FUNC_APPL_II = parse(r'λ (λ 0) (λ 0)')
 FUNC_APPL_LEFT_III = parse(r'λ (λ 0) (λ 0) (λ 0)')
 FUNC2_APPL_II = parse(r'λ λ (λ 0) (λ 0)')
+TRIPLE_APPL_02 = parse(r'λ λ λ 0 2')
 
 class TestIdentity:
   @pytest.fixture(autouse=True)
@@ -1322,6 +1323,34 @@ class TestFunc2ApplII:
   ##
   def test_svg_valid_xml(self):
     svg = render(FUNC2_APPL_II)
+    ET.fromstring(svg)
+  ##
+##
+
+class TestTripleAppl02:
+  @pytest.fixture(autouse=True)
+  def _layout(self):
+    self.g = 20.0
+    self.lo = layout(TRIPLE_APPL_02)
+  ##
+  def test_layout_structure(self):
+    assert len(self.lo.boxes) == 3
+    assert len(self.lo.pipes) == 5
+    assert len(self.lo.applicators) == 1
+  ##
+  def test_applicator_inside_innermost_box(self):
+    innermost = self.lo.boxes[2]
+    appl = self.lo.applicators[0]
+    assert innermost.rect.y < appl.center.y < innermost.rect.y + innermost.rect.height
+  ##
+  def test_applicator_grid_aligned(self):
+    innermost = self.lo.boxes[2]
+    appl = self.lo.applicators[0]
+    offset = appl.center.y - innermost.rect.y
+    assert offset % self.g == 0
+  ##
+  def test_svg_valid_xml(self):
+    svg = render(TRIPLE_APPL_02)
     ET.fromstring(svg)
   ##
 ##
