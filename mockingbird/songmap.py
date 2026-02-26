@@ -333,7 +333,7 @@ def _layout_func_wrapping(depth: int, inner_lo: Layout) -> Layout:
   gap_w = 4
   inner_out = _output_point(inner_lo)
   is_throat_output = inner_lo.output is None
-  right_pad = 4 if is_throat_output else 1
+  right_pad = 4 if is_throat_output else 3
   innermost_w = 3 + max(inner_out.x + right_pad, inner_lo.width)
   innermost_h = inner_lo.height + 2
   inner_dx = N * 4
@@ -400,7 +400,7 @@ def _layout_left_appl(expr: Appl) -> Layout:
   sh_bot = _offset_layout(lo_bot, dx_bot, dy_bot)
   top_out_shifted = Point(top_out.x + dx_top, top_out.y)
   bot_out_shifted = Point(bot_out.x + dx_bot, bot_out.y + dy_bot)
-  appl_cx = max_out_x + 2
+  appl_cx = max_out_x + 4
   appl_cy = bot_out_shifted.y
   appl = LApplicator.from_center(appl_cx, appl_cy, 1)
   func_wire = LPipe(points=(top_out_shifted, Point(appl_cx, top_out_shifted.y), appl.func_port))
@@ -438,7 +438,7 @@ def _layout_right_appl_chain(expr: Appl) -> Layout:
   dxs: list[float] = [0.0]
   for i in range(1, len(layouts)):
     prev_throat_x = dxs[i - 1] + layouts[i - 1].boxes[0].throat.x
-    dxs.append(prev_throat_x + 2 - layouts[i].boxes[0].ear.x)
+    dxs.append(prev_throat_x + 4 - layouts[i].boxes[0].ear.x)
   ##
   shifted = [_offset_layout(layouts[i], dxs[i], dys[i]) for i in range(len(layouts))]
   all_boxes: tuple[LBox, ...] = ()

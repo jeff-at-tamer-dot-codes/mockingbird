@@ -984,7 +984,7 @@ class TestApplII:
   ##
   def test_wire_length(self):
     wire = self.lo.pipes[1]
-    assert wire.points[1].x - wire.points[0].x == 20.0
+    assert wire.points[1].x - wire.points[0].x == 40.0
   ##
   def test_no_vertical_shift(self):
     arg_box = self.lo.boxes[0]
@@ -1019,7 +1019,7 @@ class TestApplMI:
   ##
   def test_wire_length(self):
     wire = self.lo.pipes[1]
-    assert wire.points[1].x - wire.points[0].x == 20.0
+    assert wire.points[1].x - wire.points[0].x == 40.0
   ##
   def test_vertical_alignment(self):
     arg_box = self.lo.boxes[0]
@@ -1068,9 +1068,9 @@ class TestApplIII:
   ##
   def test_wire_lengths(self):
     wire0 = self.lo.pipes[1]
-    assert wire0.points[1].x - wire0.points[0].x == 20.0
+    assert wire0.points[1].x - wire0.points[0].x == 40.0
     wire1 = self.lo.pipes[3]
-    assert wire1.points[1].x - wire1.points[0].x == 20.0
+    assert wire1.points[1].x - wire1.points[0].x == 40.0
   ##
   def test_no_vertical_shift(self):
     y0 = self.lo.boxes[0].rect.y
@@ -1080,7 +1080,7 @@ class TestApplIII:
   ##
   def test_total_width(self):
     single = layout(IDENTITY)
-    spacing = single.boxes[0].throat.x + 20.0 - single.boxes[0].ear.x
+    spacing = single.boxes[0].throat.x + 40.0 - single.boxes[0].ear.x
     assert self.lo.width == single.width + 2 * spacing
   ##
   def test_svg_valid_xml(self):
@@ -1123,7 +1123,7 @@ class TestApplLeftIII:
   ##
   def test_applicator_position(self):
     appl = self.lo.applicators[0]
-    g = 20.0
+    g = 40.0
     r = 10.0
     func_wire = self.lo.pipes[-2]
     aligned_x = func_wire.points[0].x
@@ -1279,7 +1279,7 @@ class TestFuncApplLeftIII:
     assert wire.points[-1] == wrap.throat
   ##
   def test_horizontal_padding_one_grid_unit(self):
-    g = 20.0
+    g = 40.0
     wrap = self.lo.boxes[0]
     appl = self.lo.applicators[0]
     assert wrap.throat.x - appl.center.x == g
