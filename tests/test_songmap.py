@@ -477,7 +477,7 @@ class TestKite:
     pipe = self.lo.pipes[1]
     inner = self.lo.boxes[1]
     outer = self.lo.boxes[0]
-    assert pipe.points[0] == inner.throat
+    assert pipe.points[0] == inner.throat.offset(10, 0)
     assert pipe.points[-1] == outer.throat
   ##
   def test_body_pipe(self):
@@ -569,7 +569,7 @@ class TestKestrel:
     pipe = self.lo.pipes[1]
     inner = self.lo.boxes[1]
     outer = self.lo.boxes[0]
-    assert pipe.points[0] == inner.throat
+    assert pipe.points[0] == inner.throat.offset(10, 0)
     assert pipe.points[-1] == outer.throat
   ##
   def test_body_pipe(self):
@@ -671,7 +671,7 @@ class TestNestedMockingbird:
   ##
   def test_throat_pipe(self):
     pipe = self.lo.pipes[3]
-    assert pipe.points[0] == self.lo.boxes[1].throat
+    assert pipe.points[0] == self.lo.boxes[1].throat.offset(10, 0)
     assert pipe.points[-1] == self.lo.boxes[0].throat
     assert len(pipe.points) == 4
   ##
@@ -771,10 +771,10 @@ class TestTripleVar0:
   ##
   def test_throat_pipes(self):
     inner_throat_pipe = self.lo.pipes[1]
-    assert inner_throat_pipe.points[0] == self.lo.boxes[2].throat
+    assert inner_throat_pipe.points[0] == self.lo.boxes[2].throat.offset(10, 0)
     assert inner_throat_pipe.points[-1] == self.lo.boxes[1].throat
     outer_throat_pipe = self.lo.pipes[2]
-    assert outer_throat_pipe.points[0] == self.lo.boxes[1].throat
+    assert outer_throat_pipe.points[0] == self.lo.boxes[1].throat.offset(10, 0)
     assert outer_throat_pipe.points[-1] == self.lo.boxes[0].throat
   ##
   def test_svg(self):
@@ -975,8 +975,8 @@ class TestApplII:
   def test_wire_connects_throat_to_ear(self):
     wire = self.lo.pipes[1]
     assert len(wire.points) == 2
-    assert wire.points[0] == self.lo.boxes[0].throat
-    assert wire.points[1] == self.lo.boxes[1].ear
+    assert wire.points[0] == self.lo.boxes[0].throat.offset(10, 0)
+    assert wire.points[1] == self.lo.boxes[1].ear.offset(-10, 0)
   ##
   def test_wire_horizontal(self):
     wire = self.lo.pipes[1]
@@ -984,7 +984,7 @@ class TestApplII:
   ##
   def test_wire_length(self):
     wire = self.lo.pipes[1]
-    assert wire.points[1].x - wire.points[0].x == 40.0
+    assert wire.points[1].x - wire.points[0].x == 20.0
   ##
   def test_no_vertical_shift(self):
     arg_box = self.lo.boxes[0]
@@ -1019,7 +1019,7 @@ class TestApplMI:
   ##
   def test_wire_length(self):
     wire = self.lo.pipes[1]
-    assert wire.points[1].x - wire.points[0].x == 40.0
+    assert wire.points[1].x - wire.points[0].x == 20.0
   ##
   def test_vertical_alignment(self):
     arg_box = self.lo.boxes[0]
@@ -1054,11 +1054,11 @@ class TestApplIII:
   ##
   def test_wires_connect_adjacent(self):
     wire0 = self.lo.pipes[1]
-    assert wire0.points[0] == self.lo.boxes[0].throat
-    assert wire0.points[1] == self.lo.boxes[1].ear
+    assert wire0.points[0] == self.lo.boxes[0].throat.offset(10, 0)
+    assert wire0.points[1] == self.lo.boxes[1].ear.offset(-10, 0)
     wire1 = self.lo.pipes[3]
-    assert wire1.points[0] == self.lo.boxes[1].throat
-    assert wire1.points[1] == self.lo.boxes[2].ear
+    assert wire1.points[0] == self.lo.boxes[1].throat.offset(10, 0)
+    assert wire1.points[1] == self.lo.boxes[2].ear.offset(-10, 0)
   ##
   def test_wires_horizontal(self):
     wire0 = self.lo.pipes[1]
@@ -1068,9 +1068,9 @@ class TestApplIII:
   ##
   def test_wire_lengths(self):
     wire0 = self.lo.pipes[1]
-    assert wire0.points[1].x - wire0.points[0].x == 40.0
+    assert wire0.points[1].x - wire0.points[0].x == 20.0
     wire1 = self.lo.pipes[3]
-    assert wire1.points[1].x - wire1.points[0].x == 40.0
+    assert wire1.points[1].x - wire1.points[0].x == 20.0
   ##
   def test_no_vertical_shift(self):
     y0 = self.lo.boxes[0].rect.y
@@ -1123,7 +1123,7 @@ class TestApplLeftIII:
   ##
   def test_applicator_position(self):
     appl = self.lo.applicators[0]
-    g = 40.0
+    g = 30.0
     r = 10.0
     func_wire = self.lo.pipes[-2]
     aligned_x = func_wire.points[0].x
@@ -1226,7 +1226,7 @@ class TestFuncApplII:
     assert len(pipe.points) == 4
     inner_rightmost = self.lo.boxes[2]
     wrap = self.lo.boxes[0]
-    assert pipe.points[0] == inner_rightmost.throat
+    assert pipe.points[0] == inner_rightmost.throat.offset(10, 0)
     assert pipe.points[-1] == wrap.throat
   ##
   def test_vertical_padding_one_grid_unit(self):
@@ -1318,7 +1318,7 @@ class TestFunc2ApplII:
   def test_throat_pipe_middle_to_outer(self):
     pipe = self.lo.pipes[4]
     assert len(pipe.points) == 4
-    assert pipe.points[0] == self.lo.boxes[1].throat
+    assert pipe.points[0] == self.lo.boxes[1].throat.offset(10, 0)
     assert pipe.points[-1] == self.lo.boxes[0].throat
   ##
   def test_svg_valid_xml(self):

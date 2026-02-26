@@ -273,10 +273,11 @@ def _layout_nested_body(depth: int, body: Expr) -> Layout:
   )
   pipes: list[LPipe] = list(body_pipes)
   for i in reversed(range(N - 1)):
-    mid_x = (boxes[i + 1].throat.x + boxes[i].throat.x) / 2
+    inner_t = boxes[i + 1].throat
+    mid_x = (inner_t.x + boxes[i].throat.x) / 2
     pipes.append(LPipe(points=(
-      boxes[i + 1].throat,
-      Point(mid_x, boxes[i + 1].throat.y),
+      Point(inner_t.x + 1, inner_t.y),
+      Point(mid_x, inner_t.y),
       Point(mid_x, boxes[i].throat.y),
       boxes[i].throat,
     )))
@@ -356,10 +357,11 @@ def _layout_func_wrapping(depth: int, inner_lo: Layout) -> Layout:
   innermost_throat = boxes[N - 1].throat
   pipes: list[LPipe] = list(shifted_inner.pipes)
   if is_throat_output:
+    start = Point(inner_out_shifted.x + 1, inner_out_shifted.y)
     mid_x = (inner_out_shifted.x + innermost_throat.x) / 2
     pipes.append(LPipe(points=(
-      inner_out_shifted,
-      Point(mid_x, inner_out_shifted.y),
+      start,
+      Point(mid_x, start.y),
       Point(mid_x, innermost_throat.y),
       innermost_throat,
     )))
@@ -367,10 +369,11 @@ def _layout_func_wrapping(depth: int, inner_lo: Layout) -> Layout:
     pipes.append(LPipe(points=(inner_out_shifted, innermost_throat)))
   ##
   for i in reversed(range(N - 1)):
-    mid_x = (boxes[i + 1].throat.x + boxes[i].throat.x) / 2
+    inner_t = boxes[i + 1].throat
+    mid_x = (inner_t.x + boxes[i].throat.x) / 2
     pipes.append(LPipe(points=(
-      boxes[i + 1].throat,
-      Point(mid_x, boxes[i + 1].throat.y),
+      Point(inner_t.x + 1, inner_t.y),
+      Point(mid_x, inner_t.y),
       Point(mid_x, boxes[i].throat.y),
       boxes[i].throat,
     )))
@@ -400,11 +403,13 @@ def _layout_left_appl(expr: Appl) -> Layout:
   sh_bot = _offset_layout(lo_bot, dx_bot, dy_bot)
   top_out_shifted = Point(top_out.x + dx_top, top_out.y)
   bot_out_shifted = Point(bot_out.x + dx_bot, bot_out.y + dy_bot)
+  top_start = Point(top_out_shifted.x + 1, top_out_shifted.y) if lo_top.output is None else top_out_shifted
+  bot_start = Point(bot_out_shifted.x + 1, bot_out_shifted.y) if lo_bot.output is None else bot_out_shifted
   appl_cx = max_out_x + 4
   appl_cy = bot_out_shifted.y
   appl = LApplicator.from_center(appl_cx, appl_cy, 1)
-  func_wire = LPipe(points=(top_out_shifted, Point(appl_cx, top_out_shifted.y), appl.func_port))
-  arg_wire = LPipe(points=(bot_out_shifted, appl.arg_port))
+  func_wire = LPipe(points=(top_start, Point(appl_cx, top_start.y), appl.func_port))
+  arg_wire = LPipe(points=(bot_start, appl.arg_port))
   width = max(dx_top + lo_top.width, dx_bot + lo_bot.width, appl_cx + 1)
   height = max(lo_top.height, dy_bot + lo_bot.height)
   return Layout(
@@ -448,7 +453,9 @@ def _layout_right_appl_chain(expr: Appl) -> Layout:
     all_boxes += sh.boxes
     all_pipes += sh.pipes
     if i < len(shifted) - 1:
-      all_pipes += (LPipe(points=(sh.boxes[0].throat, shifted[i + 1].boxes[0].ear)),)
+      t = sh.boxes[0].throat
+      e = shifted[i + 1].boxes[0].ear
+      all_pipes += (LPipe(points=(Point(t.x + 1, t.y), Point(e.x - 1, e.y))),)
     ##
     all_applicators += sh.applicators
   ##
