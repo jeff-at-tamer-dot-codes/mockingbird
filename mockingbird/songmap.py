@@ -529,36 +529,63 @@ def _render_pipes(parent: Element, pipes: tuple[LPipe, ...], s: Style) -> None:
 def _render_ears(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
   g = SubElement(parent, "g")
   g.set("class", "ears")
+  w = s.pipe_width
   for box in boxes:
     ear = box.ear
     r = s.grid
-    path = SubElement(g, "path")
-    path.set("d", f"M {ear.x},{ear.y - r} A {r},{r} 0 0 0 {ear.x},{ear.y + r} Z")
-    path.set("fill", s.fill)
+    ri = r - w
+    r2 = r - 2 * w
+    ring = SubElement(g, "path")
+    ring.set("d", (
+      f"M {ear.x},{ear.y - r} A {r},{r} 0 0 0 {ear.x},{ear.y + r}"
+      f" L {ear.x},{ear.y + ri} A {ri},{ri} 0 0 1 {ear.x},{ear.y - ri} Z"
+    ))
+    ring.set("fill", s.fill)
+    dot = SubElement(g, "path")
+    dot.set("d", f"M {ear.x},{ear.y - r2} A {r2},{r2} 0 0 0 {ear.x},{ear.y + r2} Z")
+    dot.set("fill", s.fill)
   ##
 ##
 
 def _render_throats(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
   g = SubElement(parent, "g")
   g.set("class", "throats")
+  w = s.pipe_width
   for box in boxes:
     throat = box.throat
     r = s.grid
-    path = SubElement(g, "path")
-    path.set("d", f"M {throat.x},{throat.y - r} A {r},{r} 0 0 1 {throat.x},{throat.y + r} Z")
-    path.set("fill", s.fill)
+    ri = r - w
+    r2 = r - 2 * w
+    ring = SubElement(g, "path")
+    ring.set("d", (
+      f"M {throat.x},{throat.y - r} A {r},{r} 0 0 1 {throat.x},{throat.y + r}"
+      f" L {throat.x},{throat.y + ri} A {ri},{ri} 0 0 0 {throat.x},{throat.y - ri} Z"
+    ))
+    ring.set("fill", s.fill)
+    dot = SubElement(g, "path")
+    dot.set("d", f"M {throat.x},{throat.y - r2} A {r2},{r2} 0 0 1 {throat.x},{throat.y + r2} Z")
+    dot.set("fill", s.fill)
   ##
 ##
 
 def _render_applicators(parent: Element, applicators: tuple[LApplicator, ...], s: Style) -> None:
   g = SubElement(parent, "g")
   g.set("class", "applicators")
+  w = s.pipe_width
+  r = s.grid
   for appl in applicators:
-    circle = SubElement(g, "circle")
-    circle.set("cx", str(appl.center.x))
-    circle.set("cy", str(appl.center.y))
-    circle.set("r", str(s.grid))
-    circle.set("fill", s.fill)
+    ring = SubElement(g, "circle")
+    ring.set("cx", str(appl.center.x))
+    ring.set("cy", str(appl.center.y))
+    ring.set("r", str(r - w / 2))
+    ring.set("stroke", s.fill)
+    ring.set("stroke-width", str(w))
+    ring.set("fill", "none")
+    dot = SubElement(g, "circle")
+    dot.set("cx", str(appl.center.x))
+    dot.set("cy", str(appl.center.y))
+    dot.set("r", str(r - 2 * w))
+    dot.set("fill", s.fill)
   ##
 ##
 

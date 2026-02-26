@@ -90,7 +90,7 @@ class TestIdentity:
     svg = render(IDENTITY)
     root = ET.fromstring(svg)
     paths = root.findall(".//{http://www.w3.org/2000/svg}path")
-    assert len(paths) == 2
+    assert len(paths) == 4
   ##
 ##
 
@@ -173,13 +173,13 @@ class TestMockingbird:
     svg = render(MOCKINGBIRD)
     root = ET.fromstring(svg)
     paths = root.findall(".//{http://www.w3.org/2000/svg}path")
-    assert len(paths) == 2
+    assert len(paths) == 4
   ##
   def test_svg_has_circles(self):
     svg = render(MOCKINGBIRD)
     root = ET.fromstring(svg)
     circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
-    assert len(circles) == 1
+    assert len(circles) == 2
   ##
 ##
 
@@ -293,7 +293,7 @@ class TestDoubleMockingbird:
     svg = render(DOUBLE_MOCKINGBIRD)
     root = ET.fromstring(svg)
     circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
-    assert len(circles) == 3
+    assert len(circles) == 6
   ##
 ##
 
@@ -351,7 +351,7 @@ class TestSelfApplyLeft:
     svg = render(SELF_APPLY_LEFT)
     root = ET.fromstring(svg)
     circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
-    assert len(circles) == 2
+    assert len(circles) == 4
   ##
 ##
 
@@ -409,7 +409,7 @@ class TestSelfApplyRight:
     svg = render(SELF_APPLY_RIGHT)
     root = ET.fromstring(svg)
     circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
-    assert len(circles) == 2
+    assert len(circles) == 4
   ##
 ##
 
@@ -501,7 +501,7 @@ class TestKite:
     assert len(rects) == 2
     assert len(polylines) == 2
     assert len(circles) == 0
-    assert len(paths) == 4
+    assert len(paths) == 8
   ##
 ##
 
@@ -594,7 +594,7 @@ class TestKestrel:
     assert len(rects) == 2
     assert len(polylines) == 2
     assert len(circles) == 0
-    assert len(paths) == 4
+    assert len(paths) == 8
   ##
 ##
 
@@ -689,8 +689,8 @@ class TestNestedMockingbird:
     circles = root.findall(f".//{ns}circle")
     assert len(rects) == 2
     assert len(polylines) == 4
-    assert len(paths) == 4
-    assert len(circles) == 1
+    assert len(paths) == 8
+    assert len(circles) == 2
   ##
 ##
 
@@ -788,7 +788,7 @@ class TestTripleVar0:
     assert len(rects) == 3
     assert len(polylines) == 3
     assert len(circles) == 0
-    assert len(paths) == 6
+    assert len(paths) == 12
   ##
 ##
 
