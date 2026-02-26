@@ -500,7 +500,13 @@ def _layout(expr: Expr) -> Layout:
 
 def layout(expr: Expr, style: Style | None = None) -> Layout:
   s = style or Style()
-  return _layout(expr).scale(s.grid)
+  lo = _layout(expr)
+  mx = 3
+  my = 1
+  return Layout(
+    width=lo.width + 2 * mx, height=lo.height + 2 * my,
+    boxes=lo.boxes, pipes=lo.pipes, applicators=lo.applicators, output=lo.output,
+  ).offset(mx, my).scale(s.grid)
 ##
 
 def _render_boxes(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:

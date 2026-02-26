@@ -609,20 +609,20 @@ class TestNestedMockingbird:
     assert len(self.lo.applicators) == 1
   ##
   def test_canvas_dimensions(self):
-    assert self.lo.width == 220
-    assert self.lo.height == 120
+    assert self.lo.width == 280
+    assert self.lo.height == 140
   ##
   def test_outer_box(self):
     box = self.lo.boxes[0]
-    assert box.rect.x == 10
-    assert box.rect.y == 10
+    assert box.rect.x == 40
+    assert box.rect.y == 20
     assert box.rect.width == 200
     assert box.rect.height == 100
   ##
   def test_inner_box(self):
     inner = self.lo.boxes[1]
-    assert inner.rect.x == 50
-    assert inner.rect.y == 30
+    assert inner.rect.x == 80
+    assert inner.rect.y == 40
     assert inner.rect.width == 120
     assert inner.rect.height == 60
   ##
@@ -636,20 +636,20 @@ class TestNestedMockingbird:
   ##
   def test_outer_ear_throat(self):
     box = self.lo.boxes[0]
-    assert box.ear == Point(10, 50)
-    assert box.throat == Point(210, 50)
+    assert box.ear == Point(40, 60)
+    assert box.throat == Point(240, 60)
   ##
   def test_inner_ear_throat(self):
     inner = self.lo.boxes[1]
-    assert inner.ear == Point(50, 70)
-    assert inner.throat == Point(170, 70)
+    assert inner.ear == Point(80, 80)
+    assert inner.throat == Point(200, 80)
   ##
   def test_applicator(self):
     appl = self.lo.applicators[0]
-    assert appl.center == Point(130, 70)
-    assert appl.func_port == Point(130, 60)
-    assert appl.arg_port == Point(120, 70)
-    assert appl.out_port == Point(140, 70)
+    assert appl.center == Point(160, 80)
+    assert appl.func_port == Point(160, 70)
+    assert appl.arg_port == Point(150, 80)
+    assert appl.out_port == Point(170, 80)
   ##
   def test_func_pipe(self):
     pipe = self.lo.pipes[0]
