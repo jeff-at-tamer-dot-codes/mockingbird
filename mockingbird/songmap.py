@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from xml.etree.ElementTree import Element, SubElement, tostring
 from mockingbird.ast import Expr, Var, Func, Appl
@@ -20,6 +21,12 @@ class Rect:
   y: float
   width: float
   height: float
+  def offset(self, dx: float, dy: float) -> 'Rect':
+    return Rect(self.x + dx, self.y + dy, self.width, self.height)
+  ##
+  def scale(self, factor: float) -> 'Rect':
+    return Rect(self.x * factor, self.y * factor, self.width * factor, self.height * factor)
+  ##
 ##
 
 @dataclass(frozen=True, slots=True)
@@ -37,18 +44,10 @@ class LBox:
   ear: Point
   throat: Point
   def offset(self, dx: float, dy: float) -> 'LBox':
-    return LBox(
-      rect=Rect(self.rect.x + dx, self.rect.y + dy, self.rect.width, self.rect.height),
-      ear=self.ear.offset(dx, dy),
-      throat=self.throat.offset(dx, dy),
-    )
+    return LBox(rect=self.rect.offset(dx, dy), ear=self.ear.offset(dx, dy), throat=self.throat.offset(dx, dy))
   ##
   def scale(self, factor: float) -> 'LBox':
-    return LBox(
-      rect=Rect(self.rect.x * factor, self.rect.y * factor, self.rect.width * factor, self.rect.height * factor),
-      ear=self.ear.scale(factor),
-      throat=self.throat.scale(factor),
-    )
+    return LBox(rect=self.rect.scale(factor), ear=self.ear.scale(factor), throat=self.throat.scale(factor))
   ##
 ##
 
@@ -239,6 +238,21 @@ def _layout_body_in_box(
   return _BodyBuilder(body, boxes, throat, box_x, box_y, box_w, box_h).run()
 ##
 
+def _wire_throats(boxes: list[LBox]) -> list[LPipe]:
+  pipes: list[LPipe] = []
+  for i in reversed(range(len(boxes) - 1)):
+    inner_t = boxes[i + 1].throat
+    mid_x = (inner_t.x + boxes[i].throat.x) / 2
+    pipes.append(LPipe(points=(
+      Point(inner_t.x + 1, inner_t.y),
+      Point(mid_x, inner_t.y),
+      Point(mid_x, boxes[i].throat.y),
+      boxes[i].throat,
+    )))
+  ##
+  return pipes
+##
+
 def _layout_nested_body(depth: int, body: Expr) -> Layout:
   num_vars, body_depth = _body_stats(body)
   num_cols = body_depth + 2
@@ -269,17 +283,7 @@ def _layout_nested_body(depth: int, body: Expr) -> Layout:
     body, boxes, innermost.throat,
     innermost.rect.x, innermost.rect.y, innermost.rect.width, innermost.rect.height,
   )
-  pipes: list[LPipe] = list(body_pipes)
-  for i in reversed(range(N - 1)):
-    inner_t = boxes[i + 1].throat
-    mid_x = (inner_t.x + boxes[i].throat.x) / 2
-    pipes.append(LPipe(points=(
-      Point(inner_t.x + 1, inner_t.y),
-      Point(mid_x, inner_t.y),
-      Point(mid_x, boxes[i].throat.y),
-      boxes[i].throat,
-    )))
-  ##
+  pipes: list[LPipe] = list(body_pipes) + _wire_throats(boxes)
   return Layout(
     width=total_w, height=total_h,
     boxes=tuple(boxes), pipes=tuple(pipes),
@@ -364,16 +368,7 @@ def _layout_func_wrapping(depth: int, inner_lo: Layout) -> Layout:
   else:
     pipes.append(LPipe(points=(inner_out_shifted, innermost_throat)))
   ##
-  for i in reversed(range(N - 1)):
-    inner_t = boxes[i + 1].throat
-    mid_x = (inner_t.x + boxes[i].throat.x) / 2
-    pipes.append(LPipe(points=(
-      Point(inner_t.x + 1, inner_t.y),
-      Point(mid_x, inner_t.y),
-      Point(mid_x, boxes[i].throat.y),
-      boxes[i].throat,
-    )))
-  ##
+  pipes.extend(_wire_throats(boxes))
   outermost_w = innermost_w + 2 * (N - 1) * gap_w
   outermost_h = innermost_h + 4 * (N - 1)
   total_w = 8 + outermost_w
@@ -442,25 +437,25 @@ def _layout_right_appl_chain(expr: Appl) -> Layout:
     dxs.append(prev_throat_x + 4 - layouts[i].boxes[0].ear.x)
   ##
   shifted = [_offset_layout(layouts[i], dxs[i], dys[i]) for i in range(len(layouts))]
-  all_boxes: tuple[LBox, ...] = ()
-  all_pipes: tuple[LPipe, ...] = ()
-  all_applicators: tuple[LApplicator, ...] = ()
+  all_boxes: list[LBox] = []
+  all_pipes: list[LPipe] = []
+  all_applicators: list[LApplicator] = []
   for i, sh in enumerate(shifted):
-    all_boxes += sh.boxes
-    all_pipes += sh.pipes
+    all_boxes.extend(sh.boxes)
+    all_pipes.extend(sh.pipes)
     if i < len(shifted) - 1:
       t = sh.boxes[0].throat
       e = shifted[i + 1].boxes[0].ear
-      all_pipes += (LPipe(points=(Point(t.x + 1, t.y), Point(e.x - 1, e.y))),)
+      all_pipes.append(LPipe(points=(Point(t.x + 1, t.y), Point(e.x - 1, e.y))))
     ##
-    all_applicators += sh.applicators
+    all_applicators.extend(sh.applicators)
   ##
   total_width = dxs[-1] + layouts[-1].width
   total_height = max(dys[i] + layouts[i].height for i in range(len(layouts)))
   return Layout(
     width=total_width, height=total_height,
-    boxes=all_boxes, pipes=all_pipes,
-    applicators=all_applicators,
+    boxes=tuple(all_boxes), pipes=tuple(all_pipes),
+    applicators=tuple(all_applicators),
   )
 ##
 
@@ -501,7 +496,6 @@ def layout(expr: Expr, style: Style | None = None) -> Layout:
 
 def _render_boxes(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
   g = SubElement(parent, "g")
-  g.set("class", "boxes")
   for box in boxes:
     rect = box.rect
     rect_el = SubElement(g, "rect")
@@ -518,7 +512,6 @@ def _render_boxes(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
 
 def _render_pipes(parent: Element, pipes: tuple[LPipe, ...], s: Style) -> None:
   g = SubElement(parent, "g")
-  g.set("class", "pipes")
   for pipe in pipes:
     poly = SubElement(g, "polyline")
     pts = " ".join(f"{p.x},{p.y}" for p in pipe.points)
@@ -529,51 +522,32 @@ def _render_pipes(parent: Element, pipes: tuple[LPipe, ...], s: Style) -> None:
   ##
 ##
 
-def _render_ears(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
+def _render_targets(
+    parent: Element, boxes: tuple[LBox, ...], s: Style, sweep: int,
+    get_point: Callable[[LBox], Point],
+) -> None:
   g = SubElement(parent, "g")
-  g.set("class", "ears")
   w = s.pipe_width
+  flip = 1 - sweep
   for box in boxes:
-    ear = box.ear
+    pt = get_point(box)
     r = s.grid
     ri = r - w
     r2 = r - 2 * w
     ring = SubElement(g, "path")
     ring.set("d", (
-      f"M {ear.x},{ear.y - r} A {r},{r} 0 0 0 {ear.x},{ear.y + r}"
-      f" L {ear.x},{ear.y + ri} A {ri},{ri} 0 0 1 {ear.x},{ear.y - ri} Z"
+      f"M {pt.x},{pt.y - r} A {r},{r} 0 0 {sweep} {pt.x},{pt.y + r}"
+      f" L {pt.x},{pt.y + ri} A {ri},{ri} 0 0 {flip} {pt.x},{pt.y - ri} Z"
     ))
     ring.set("fill", s.fill)
     dot = SubElement(g, "path")
-    dot.set("d", f"M {ear.x},{ear.y - r2} A {r2},{r2} 0 0 0 {ear.x},{ear.y + r2} Z")
-    dot.set("fill", s.fill)
-  ##
-##
-
-def _render_throats(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
-  g = SubElement(parent, "g")
-  g.set("class", "throats")
-  w = s.pipe_width
-  for box in boxes:
-    throat = box.throat
-    r = s.grid
-    ri = r - w
-    r2 = r - 2 * w
-    ring = SubElement(g, "path")
-    ring.set("d", (
-      f"M {throat.x},{throat.y - r} A {r},{r} 0 0 1 {throat.x},{throat.y + r}"
-      f" L {throat.x},{throat.y + ri} A {ri},{ri} 0 0 0 {throat.x},{throat.y - ri} Z"
-    ))
-    ring.set("fill", s.fill)
-    dot = SubElement(g, "path")
-    dot.set("d", f"M {throat.x},{throat.y - r2} A {r2},{r2} 0 0 1 {throat.x},{throat.y + r2} Z")
+    dot.set("d", f"M {pt.x},{pt.y - r2} A {r2},{r2} 0 0 {sweep} {pt.x},{pt.y + r2} Z")
     dot.set("fill", s.fill)
   ##
 ##
 
 def _render_applicators(parent: Element, applicators: tuple[LApplicator, ...], s: Style) -> None:
   g = SubElement(parent, "g")
-  g.set("class", "applicators")
   w = s.pipe_width
   r = s.grid
   for appl in applicators:
@@ -600,8 +574,8 @@ def render_layout(lo: Layout, style: Style | None = None) -> str:
   svg.set("height", str(lo.height))
   _render_boxes(svg, lo.boxes, s)
   _render_pipes(svg, lo.pipes, s)
-  _render_ears(svg, lo.boxes, s)
-  _render_throats(svg, lo.boxes, s)
+  _render_targets(svg, lo.boxes, s, 0, lambda b: b.ear)
+  _render_targets(svg, lo.boxes, s, 1, lambda b: b.throat)
   _render_applicators(svg, lo.applicators, s)
   return tostring(svg, encoding="unicode")
 ##
