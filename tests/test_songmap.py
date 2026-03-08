@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import pytest
+from mockingbird.ast import Expr
 from mockingbird.parser import parse
 from mockingbird.songmap import layout, render, Point
 
@@ -29,27 +30,178 @@ FUNC_APPL_LEFT_III = parse(r'λ (λ 0) (λ 0) (λ 0)')
 FUNC2_APPL_II = parse(r'λ λ (λ 0) (λ 0)')
 TRIPLE_APPL_02 = parse(r'λ λ λ 0 2')
 
+ALL_EXPRESSIONS: list[tuple[str, Expr]] = [
+  ("IDENTITY", IDENTITY),
+  ("MOCKINGBIRD", MOCKINGBIRD),
+  ("DOUBLE_MOCKINGBIRD", DOUBLE_MOCKINGBIRD),
+  ("SELF_APPLY_LEFT", SELF_APPLY_LEFT),
+  ("SELF_APPLY_RIGHT", SELF_APPLY_RIGHT),
+  ("KITE", KITE),
+  ("KESTREL", KESTREL),
+  ("NESTED_01", NESTED_01),
+  ("NESTED_10", NESTED_10),
+  ("NESTED_11", NESTED_11),
+  ("NESTED_MOCKINGBIRD", NESTED_MOCKINGBIRD),
+  ("NESTED_DOUBLE_MOCKINGBIRD", NESTED_DOUBLE_MOCKINGBIRD),
+  ("TRIPLE_VAR0", TRIPLE_VAR0),
+  ("TRIPLE_VAR1", TRIPLE_VAR1),
+  ("TRIPLE_VAR2", TRIPLE_VAR2),
+  ("APPL_II", APPL_II),
+  ("APPL_MI", APPL_MI),
+  ("APPL_III", APPL_III),
+  ("APPL_LEFT_III", APPL_LEFT_III),
+  ("APPL_LEFT_MI_I", APPL_LEFT_MI_I),
+  ("APPL_LEFT_IIII", APPL_LEFT_IIII),
+  ("FUNC_APPL_II", FUNC_APPL_II),
+  ("FUNC_APPL_LEFT_III", FUNC_APPL_LEFT_III),
+  ("FUNC2_APPL_II", FUNC2_APPL_II),
+  ("TRIPLE_APPL_02", TRIPLE_APPL_02),
+]
+SINGLE_BOX_EXPRESSIONS: list[tuple[str, Expr]] = [
+  ("IDENTITY", IDENTITY),
+  ("MOCKINGBIRD", MOCKINGBIRD),
+  ("DOUBLE_MOCKINGBIRD", DOUBLE_MOCKINGBIRD),
+  ("SELF_APPLY_LEFT", SELF_APPLY_LEFT),
+  ("SELF_APPLY_RIGHT", SELF_APPLY_RIGHT),
+]
+LAYOUT_STRUCTURE_CASES: list[tuple[str, Expr, int, int, int]] = [
+  ("IDENTITY", IDENTITY, 1, 1, 0),
+  ("MOCKINGBIRD", MOCKINGBIRD, 1, 3, 1),
+  ("DOUBLE_MOCKINGBIRD", DOUBLE_MOCKINGBIRD, 1, 7, 3),
+  ("SELF_APPLY_LEFT", SELF_APPLY_LEFT, 1, 5, 2),
+  ("SELF_APPLY_RIGHT", SELF_APPLY_RIGHT, 1, 5, 2),
+  ("KITE", KITE, 2, 2, 0),
+  ("KESTREL", KESTREL, 2, 2, 0),
+  ("NESTED_MOCKINGBIRD", NESTED_MOCKINGBIRD, 2, 4, 1),
+  ("TRIPLE_VAR0", TRIPLE_VAR0, 3, 3, 0),
+  ("TRIPLE_VAR1", TRIPLE_VAR1, 3, 3, 0),
+  ("TRIPLE_VAR2", TRIPLE_VAR2, 3, 3, 0),
+  ("NESTED_01", NESTED_01, 2, 4, 1),
+  ("NESTED_10", NESTED_10, 2, 4, 1),
+  ("NESTED_11", NESTED_11, 2, 4, 1),
+  ("APPL_II", APPL_II, 2, 3, 0),
+  ("APPL_MI", APPL_MI, 2, 5, 1),
+  ("APPL_III", APPL_III, 3, 5, 0),
+  ("APPL_LEFT_III", APPL_LEFT_III, 3, 6, 1),
+  ("APPL_LEFT_MI_I", APPL_LEFT_MI_I, 3, 8, 2),
+  ("APPL_LEFT_IIII", APPL_LEFT_IIII, 4, 9, 2),
+  ("FUNC_APPL_II", FUNC_APPL_II, 3, 4, 0),
+  ("FUNC_APPL_LEFT_III", FUNC_APPL_LEFT_III, 4, 7, 1),
+  ("FUNC2_APPL_II", FUNC2_APPL_II, 4, 5, 0),
+  ("TRIPLE_APPL_02", TRIPLE_APPL_02, 3, 5, 1),
+]
+SVG_ELEMENT_CASES: list[tuple[str, Expr, int | None, int | None, int | None, int | None]] = [
+  ("IDENTITY", IDENTITY, 1, 1, 0, 4),
+  ("MOCKINGBIRD", MOCKINGBIRD, 1, 3, 2, 4),
+  ("DOUBLE_MOCKINGBIRD", DOUBLE_MOCKINGBIRD, None, 7, 6, None),
+  ("SELF_APPLY_LEFT", SELF_APPLY_LEFT, None, 5, 4, None),
+  ("SELF_APPLY_RIGHT", SELF_APPLY_RIGHT, None, 5, 4, None),
+  ("KITE", KITE, 2, 2, 0, 8),
+  ("KESTREL", KESTREL, 2, 2, 0, 8),
+  ("NESTED_MOCKINGBIRD", NESTED_MOCKINGBIRD, 2, 4, 2, 8),
+  ("TRIPLE_VAR0", TRIPLE_VAR0, 3, 3, 0, 12),
+]
+
+@pytest.mark.parametrize("name, expr", ALL_EXPRESSIONS, ids=[e[0] for e in ALL_EXPRESSIONS])
+def test_svg_valid_xml(name: str, expr: Expr) -> None:
+  ET.fromstring(render(expr))
+##
+
+@pytest.mark.parametrize("name, expr", SINGLE_BOX_EXPRESSIONS, ids=[e[0] for e in SINGLE_BOX_EXPRESSIONS])
+def test_box_dimensions(name: str, expr: Expr) -> None:
+  lo = layout(expr)
+  box = lo.boxes[0]
+  assert box.rect.width > 0
+  assert box.rect.height > 0
+##
+
+@pytest.mark.parametrize("name, expr", SINGLE_BOX_EXPRESSIONS, ids=[e[0] for e in SINGLE_BOX_EXPRESSIONS])
+def test_ear_on_left_edge(name: str, expr: Expr) -> None:
+  lo = layout(expr)
+  assert lo.boxes[0].ear.x == lo.boxes[0].rect.x
+##
+
+@pytest.mark.parametrize("name, expr", SINGLE_BOX_EXPRESSIONS, ids=[e[0] for e in SINGLE_BOX_EXPRESSIONS])
+def test_throat_on_right_edge(name: str, expr: Expr) -> None:
+  lo = layout(expr)
+  box = lo.boxes[0]
+  assert box.throat.x == box.rect.x + box.rect.width
+##
+
+@pytest.mark.parametrize(
+  "name, expr, n_boxes, n_pipes, n_appls",
+  LAYOUT_STRUCTURE_CASES,
+  ids=[c[0] for c in LAYOUT_STRUCTURE_CASES],
+)
+def test_layout_structure(name: str, expr: Expr, n_boxes: int, n_pipes: int, n_appls: int) -> None:
+  lo = layout(expr)
+  assert len(lo.boxes) == n_boxes
+  assert len(lo.pipes) == n_pipes
+  assert len(lo.applicators) == n_appls
+##
+
+@pytest.mark.parametrize(
+  "name, expr, n_rects, n_polylines, n_circles, n_paths",
+  SVG_ELEMENT_CASES,
+  ids=[c[0] for c in SVG_ELEMENT_CASES],
+)
+def test_svg_element_counts(
+  name: str, expr: Expr,
+  n_rects: int | None, n_polylines: int | None,
+  n_circles: int | None, n_paths: int | None,
+) -> None:
+  root = ET.fromstring(render(expr))
+  ns = "{http://www.w3.org/2000/svg}"
+  if n_rects is not None:
+    assert len(root.findall(f".//{ns}rect")) == n_rects
+  ##
+  assert len(root.findall(f".//{ns}polyline")) == n_polylines
+  assert len(root.findall(f".//{ns}circle")) == n_circles
+  if n_paths is not None:
+    assert len(root.findall(f".//{ns}path")) == n_paths
+  ##
+##
+
+@pytest.mark.parametrize(
+  "name, expr, pipe_counts",
+  [("TRIPLE_VAR1", TRIPLE_VAR1, [4, 4, 4]), ("TRIPLE_VAR2", TRIPLE_VAR2, [4, 4, 4])],
+  ids=["TRIPLE_VAR1", "TRIPLE_VAR2"],
+)
+def test_triple_var_pipe_counts(name: str, expr: Expr, pipe_counts: list[int]) -> None:
+  lo = layout(expr)
+  assert [len(p.points) for p in lo.pipes] == pipe_counts
+##
+
+@pytest.mark.parametrize(
+  "name, expr, ear_box_idx",
+  [("TRIPLE_VAR1", TRIPLE_VAR1, 1), ("TRIPLE_VAR2", TRIPLE_VAR2, 0)],
+  ids=["TRIPLE_VAR1", "TRIPLE_VAR2"],
+)
+def test_triple_var_body_pipe(name: str, expr: Expr, ear_box_idx: int) -> None:
+  lo = layout(expr)
+  pipe = lo.pipes[0]
+  assert pipe.points[0] == lo.boxes[ear_box_idx].ear
+  assert pipe.points[-1] == lo.boxes[2].throat
+##
+
+@pytest.mark.parametrize(
+  "name, expr",
+  [("NESTED_10", NESTED_10), ("NESTED_11", NESTED_11)],
+  ids=["NESTED_10", "NESTED_11"],
+)
+def test_nested_func_pipe_from_outer_ear(name: str, expr: Expr) -> None:
+  lo = layout(expr)
+  pipe = lo.pipes[0]
+  assert pipe.points[0] == lo.boxes[0].ear
+  assert pipe.points[1] == Point(lo.boxes[1].rect.x, lo.boxes[0].ear.y)
+  assert pipe.points[-1] == lo.applicators[0].func_port
+  assert len(pipe.points) == 5
+##
+
 class TestIdentity:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(IDENTITY)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 1
-    assert len(self.lo.pipes) == 1
-  ##
-  def test_box_dimensions(self):
-    box = self.lo.boxes[0]
-    assert box.rect.width > 0
-    assert box.rect.height > 0
-  ##
-  def test_ear_on_left_edge(self):
-    box = self.lo.boxes[0]
-    assert box.ear.x == box.rect.x
-  ##
-  def test_throat_on_right_edge(self):
-    box = self.lo.boxes[0]
-    assert box.throat.x == box.rect.x + box.rect.width
   ##
   def test_ear_throat_vertically_centered(self):
     box = self.lo.boxes[0]
@@ -63,16 +215,6 @@ class TestIdentity:
     assert pipe.points[0] == box.ear
     assert pipe.points[-1] == box.throat
   ##
-  def test_svg_valid_xml(self):
-    svg = render(IDENTITY)
-    ET.fromstring(svg)
-  ##
-  def test_svg_has_rect(self):
-    svg = render(IDENTITY)
-    root = ET.fromstring(svg)
-    rects = root.findall(".//{http://www.w3.org/2000/svg}rect")
-    assert len(rects) == 1
-  ##
   def test_svg_has_dashed_rect(self):
     svg = render(IDENTITY)
     root = ET.fromstring(svg)
@@ -80,42 +222,12 @@ class TestIdentity:
     assert rect is not None
     assert rect.get("stroke-dasharray") is not None
   ##
-  def test_svg_has_polyline(self):
-    svg = render(IDENTITY)
-    root = ET.fromstring(svg)
-    polylines = root.findall(".//{http://www.w3.org/2000/svg}polyline")
-    assert len(polylines) == 1
-  ##
-  def test_svg_has_ear_and_throat(self):
-    svg = render(IDENTITY)
-    root = ET.fromstring(svg)
-    paths = root.findall(".//{http://www.w3.org/2000/svg}path")
-    assert len(paths) == 4
-  ##
 ##
 
 class TestMockingbird:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(MOCKINGBIRD)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 1
-    assert len(self.lo.pipes) == 3
-    assert len(self.lo.applicators) == 1
-  ##
-  def test_box_dimensions(self):
-    box = self.lo.boxes[0]
-    assert box.rect.width > 0
-    assert box.rect.height > 0
-  ##
-  def test_ear_on_left_edge(self):
-    box = self.lo.boxes[0]
-    assert box.ear.x == box.rect.x
-  ##
-  def test_throat_on_right_edge(self):
-    box = self.lo.boxes[0]
-    assert box.throat.x == box.rect.x + box.rect.width
   ##
   def test_ear_throat_at_two_thirds(self):
     box = self.lo.boxes[0]
@@ -153,58 +265,12 @@ class TestMockingbird:
     assert pipe.points[0] == self.lo.applicators[0].out_port
     assert pipe.points[-1] == self.lo.boxes[0].throat
   ##
-  def test_svg_valid_xml(self):
-    svg = render(MOCKINGBIRD)
-    ET.fromstring(svg)
-  ##
-  def test_svg_has_rect(self):
-    svg = render(MOCKINGBIRD)
-    root = ET.fromstring(svg)
-    rects = root.findall(".//{http://www.w3.org/2000/svg}rect")
-    assert len(rects) == 1
-  ##
-  def test_svg_has_polylines(self):
-    svg = render(MOCKINGBIRD)
-    root = ET.fromstring(svg)
-    polylines = root.findall(".//{http://www.w3.org/2000/svg}polyline")
-    assert len(polylines) == 3
-  ##
-  def test_svg_has_ear_and_throat(self):
-    svg = render(MOCKINGBIRD)
-    root = ET.fromstring(svg)
-    paths = root.findall(".//{http://www.w3.org/2000/svg}path")
-    assert len(paths) == 4
-  ##
-  def test_svg_has_circles(self):
-    svg = render(MOCKINGBIRD)
-    root = ET.fromstring(svg)
-    circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
-    assert len(circles) == 2
-  ##
 ##
 
 class TestDoubleMockingbird:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(DOUBLE_MOCKINGBIRD)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 1
-    assert len(self.lo.pipes) == 7
-    assert len(self.lo.applicators) == 3
-  ##
-  def test_box_dimensions(self):
-    box = self.lo.boxes[0]
-    assert box.rect.width > 0
-    assert box.rect.height > 0
-  ##
-  def test_ear_on_left_edge(self):
-    box = self.lo.boxes[0]
-    assert box.ear.x == box.rect.x
-  ##
-  def test_throat_on_right_edge(self):
-    box = self.lo.boxes[0]
-    assert box.throat.x == box.rect.x + box.rect.width
   ##
   def test_ear_throat_at_four_fifths(self):
     box = self.lo.boxes[0]
@@ -279,46 +345,12 @@ class TestDoubleMockingbird:
     assert pipe.points[0] == self.lo.applicators[2].out_port
     assert pipe.points[-1] == self.lo.boxes[0].throat
   ##
-  def test_svg_valid_xml(self):
-    svg = render(DOUBLE_MOCKINGBIRD)
-    ET.fromstring(svg)
-  ##
-  def test_svg_has_polylines(self):
-    svg = render(DOUBLE_MOCKINGBIRD)
-    root = ET.fromstring(svg)
-    polylines = root.findall(".//{http://www.w3.org/2000/svg}polyline")
-    assert len(polylines) == 7
-  ##
-  def test_svg_has_circles(self):
-    svg = render(DOUBLE_MOCKINGBIRD)
-    root = ET.fromstring(svg)
-    circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
-    assert len(circles) == 6
-  ##
 ##
 
 class TestSelfApplyLeft:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(SELF_APPLY_LEFT)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 1
-    assert len(self.lo.pipes) == 5
-    assert len(self.lo.applicators) == 2
-  ##
-  def test_box_dimensions(self):
-    box = self.lo.boxes[0]
-    assert box.rect.width > 0
-    assert box.rect.height > 0
-  ##
-  def test_ear_on_left_edge(self):
-    box = self.lo.boxes[0]
-    assert box.ear.x == box.rect.x
-  ##
-  def test_throat_on_right_edge(self):
-    box = self.lo.boxes[0]
-    assert box.throat.x == box.rect.x + box.rect.width
   ##
   def test_ear_throat_at_three_quarters(self):
     box = self.lo.boxes[0]
@@ -337,46 +369,12 @@ class TestSelfApplyLeft:
     counts = [len(p.points) for p in self.lo.pipes]
     assert counts == [4, 3, 3, 3, 2]
   ##
-  def test_svg_valid_xml(self):
-    svg = render(SELF_APPLY_LEFT)
-    ET.fromstring(svg)
-  ##
-  def test_svg_has_polylines(self):
-    svg = render(SELF_APPLY_LEFT)
-    root = ET.fromstring(svg)
-    polylines = root.findall(".//{http://www.w3.org/2000/svg}polyline")
-    assert len(polylines) == 5
-  ##
-  def test_svg_has_circles(self):
-    svg = render(SELF_APPLY_LEFT)
-    root = ET.fromstring(svg)
-    circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
-    assert len(circles) == 4
-  ##
 ##
 
 class TestSelfApplyRight:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(SELF_APPLY_RIGHT)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 1
-    assert len(self.lo.pipes) == 5
-    assert len(self.lo.applicators) == 2
-  ##
-  def test_box_dimensions(self):
-    box = self.lo.boxes[0]
-    assert box.rect.width > 0
-    assert box.rect.height > 0
-  ##
-  def test_ear_on_left_edge(self):
-    box = self.lo.boxes[0]
-    assert box.ear.x == box.rect.x
-  ##
-  def test_throat_on_right_edge(self):
-    box = self.lo.boxes[0]
-    assert box.throat.x == box.rect.x + box.rect.width
   ##
   def test_ear_throat_at_three_quarters(self):
     box = self.lo.boxes[0]
@@ -395,33 +393,12 @@ class TestSelfApplyRight:
     counts = [len(p.points) for p in self.lo.pipes]
     assert counts == [4, 3, 4, 2, 2]
   ##
-  def test_svg_valid_xml(self):
-    svg = render(SELF_APPLY_RIGHT)
-    ET.fromstring(svg)
-  ##
-  def test_svg_has_polylines(self):
-    svg = render(SELF_APPLY_RIGHT)
-    root = ET.fromstring(svg)
-    polylines = root.findall(".//{http://www.w3.org/2000/svg}polyline")
-    assert len(polylines) == 5
-  ##
-  def test_svg_has_circles(self):
-    svg = render(SELF_APPLY_RIGHT)
-    root = ET.fromstring(svg)
-    circles = root.findall(".//{http://www.w3.org/2000/svg}circle")
-    assert len(circles) == 4
-  ##
 ##
 
 class TestKite:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(KITE)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 2
-    assert len(self.lo.pipes) == 2
-    assert len(self.lo.applicators) == 0
   ##
   def test_outer_box_dimensions(self):
     box = self.lo.boxes[0]
@@ -486,34 +463,12 @@ class TestKite:
     assert pipe.points[0] == inner.ear
     assert pipe.points[-1] == inner.throat
   ##
-  def test_svg_valid_xml(self):
-    svg = render(KITE)
-    ET.fromstring(svg)
-  ##
-  def test_svg_elements(self):
-    svg = render(KITE)
-    root = ET.fromstring(svg)
-    ns = "{http://www.w3.org/2000/svg}"
-    rects = root.findall(f".//{ns}rect")
-    polylines = root.findall(f".//{ns}polyline")
-    circles = root.findall(f".//{ns}circle")
-    paths = root.findall(f".//{ns}path")
-    assert len(rects) == 2
-    assert len(polylines) == 2
-    assert len(circles) == 0
-    assert len(paths) == 8
-  ##
 ##
 
 class TestKestrel:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(KESTREL)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 2
-    assert len(self.lo.pipes) == 2
-    assert len(self.lo.applicators) == 0
   ##
   def test_outer_box_dimensions(self):
     box = self.lo.boxes[0]
@@ -579,34 +534,12 @@ class TestKestrel:
     assert pipe.points[0] == outer.ear
     assert pipe.points[-1] == inner.throat
   ##
-  def test_svg_valid_xml(self):
-    svg = render(KESTREL)
-    ET.fromstring(svg)
-  ##
-  def test_svg_elements(self):
-    svg = render(KESTREL)
-    root = ET.fromstring(svg)
-    ns = "{http://www.w3.org/2000/svg}"
-    rects = root.findall(f".//{ns}rect")
-    polylines = root.findall(f".//{ns}polyline")
-    circles = root.findall(f".//{ns}circle")
-    paths = root.findall(f".//{ns}path")
-    assert len(rects) == 2
-    assert len(polylines) == 2
-    assert len(circles) == 0
-    assert len(paths) == 8
-  ##
 ##
 
 class TestNestedMockingbird:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(NESTED_MOCKINGBIRD)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 2
-    assert len(self.lo.pipes) == 4
-    assert len(self.lo.applicators) == 1
   ##
   def test_canvas_dimensions(self):
     assert self.lo.width == 280
@@ -675,23 +608,6 @@ class TestNestedMockingbird:
     assert pipe.points[-1] == self.lo.boxes[0].throat
     assert len(pipe.points) == 4
   ##
-  def test_svg_valid_xml(self):
-    svg = render(NESTED_MOCKINGBIRD)
-    ET.fromstring(svg)
-  ##
-  def test_svg_elements(self):
-    svg = render(NESTED_MOCKINGBIRD)
-    root = ET.fromstring(svg)
-    ns = "{http://www.w3.org/2000/svg}"
-    rects = root.findall(f".//{ns}rect")
-    polylines = root.findall(f".//{ns}polyline")
-    paths = root.findall(f".//{ns}path")
-    circles = root.findall(f".//{ns}circle")
-    assert len(rects) == 2
-    assert len(polylines) == 4
-    assert len(paths) == 8
-    assert len(circles) == 2
-  ##
 ##
 
 class TestNestedDoubleMockingbird:
@@ -723,11 +639,6 @@ class TestTripleVar0:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(TRIPLE_VAR0)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 3
-    assert len(self.lo.pipes) == 3
-    assert len(self.lo.applicators) == 0
   ##
   def test_outer_box_dimensions(self):
     box = self.lo.boxes[0]
@@ -777,76 +688,12 @@ class TestTripleVar0:
     assert outer_throat_pipe.points[0] == self.lo.boxes[1].throat.offset(10, 0)
     assert outer_throat_pipe.points[-1] == self.lo.boxes[0].throat
   ##
-  def test_svg(self):
-    svg = render(TRIPLE_VAR0)
-    root = ET.fromstring(svg)
-    ns = "{http://www.w3.org/2000/svg}"
-    rects = root.findall(f".//{ns}rect")
-    polylines = root.findall(f".//{ns}polyline")
-    circles = root.findall(f".//{ns}circle")
-    paths = root.findall(f".//{ns}path")
-    assert len(rects) == 3
-    assert len(polylines) == 3
-    assert len(circles) == 0
-    assert len(paths) == 12
-  ##
-##
-
-class TestTripleVar1:
-  @pytest.fixture(autouse=True)
-  def _layout(self):
-    self.lo = layout(TRIPLE_VAR1)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 3
-    assert len(self.lo.pipes) == 3
-    assert len(self.lo.applicators) == 0
-  ##
-  def test_pipe_counts(self):
-    counts = [len(p.points) for p in self.lo.pipes]
-    assert counts == [4, 4, 4]
-  ##
-  def test_body_pipe(self):
-    pipe = self.lo.pipes[0]
-    middle = self.lo.boxes[1]
-    innermost = self.lo.boxes[2]
-    assert pipe.points[0] == middle.ear
-    assert pipe.points[-1] == innermost.throat
-  ##
-##
-
-class TestTripleVar2:
-  @pytest.fixture(autouse=True)
-  def _layout(self):
-    self.lo = layout(TRIPLE_VAR2)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 3
-    assert len(self.lo.pipes) == 3
-    assert len(self.lo.applicators) == 0
-  ##
-  def test_pipe_counts(self):
-    counts = [len(p.points) for p in self.lo.pipes]
-    assert counts == [4, 4, 4]
-  ##
-  def test_body_pipe(self):
-    pipe = self.lo.pipes[0]
-    outer = self.lo.boxes[0]
-    innermost = self.lo.boxes[2]
-    assert pipe.points[0] == outer.ear
-    assert pipe.points[-1] == innermost.throat
-  ##
 ##
 
 class TestNested01:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(NESTED_01)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 2
-    assert len(self.lo.pipes) == 4
-    assert len(self.lo.applicators) == 1
   ##
   def test_func_pipe_from_inner_ear(self):
     pipe = self.lo.pipes[0]
@@ -860,10 +707,6 @@ class TestNested01:
     assert pipe.points[-1] == self.lo.applicators[0].arg_port
     assert len(pipe.points) == 4
   ##
-  def test_svg_valid_xml(self):
-    svg = render(NESTED_01)
-    ET.fromstring(svg)
-  ##
 ##
 
 class TestNested10:
@@ -871,26 +714,10 @@ class TestNested10:
   def _layout(self):
     self.lo = layout(NESTED_10)
   ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 2
-    assert len(self.lo.pipes) == 4
-    assert len(self.lo.applicators) == 1
-  ##
-  def test_func_pipe_from_outer_ear(self):
-    pipe = self.lo.pipes[0]
-    assert pipe.points[0] == self.lo.boxes[0].ear
-    assert pipe.points[1] == Point(self.lo.boxes[1].rect.x, self.lo.boxes[0].ear.y)
-    assert pipe.points[-1] == self.lo.applicators[0].func_port
-    assert len(pipe.points) == 5
-  ##
   def test_arg_pipe_from_inner_ear(self):
     pipe = self.lo.pipes[1]
     assert pipe.points[0] == self.lo.boxes[1].ear
     assert pipe.points[-1] == self.lo.applicators[0].arg_port
-  ##
-  def test_svg_valid_xml(self):
-    svg = render(NESTED_10)
-    ET.fromstring(svg)
   ##
 ##
 
@@ -899,28 +726,12 @@ class TestNested11:
   def _layout(self):
     self.lo = layout(NESTED_11)
   ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 2
-    assert len(self.lo.pipes) == 4
-    assert len(self.lo.applicators) == 1
-  ##
-  def test_func_pipe_from_outer_ear(self):
-    pipe = self.lo.pipes[0]
-    assert pipe.points[0] == self.lo.boxes[0].ear
-    assert pipe.points[1] == Point(self.lo.boxes[1].rect.x, self.lo.boxes[0].ear.y)
-    assert pipe.points[-1] == self.lo.applicators[0].func_port
-    assert len(pipe.points) == 5
-  ##
   def test_arg_pipe_from_outer_ear(self):
     pipe = self.lo.pipes[1]
     assert pipe.points[0] == self.lo.boxes[0].ear
     assert pipe.points[1] == Point(self.lo.boxes[1].rect.x, self.lo.boxes[0].ear.y)
     assert pipe.points[-1] == self.lo.applicators[0].arg_port
     assert len(pipe.points) == 4
-  ##
-  def test_svg_valid_xml(self):
-    svg = render(NESTED_11)
-    ET.fromstring(svg)
   ##
 ##
 
@@ -962,11 +773,6 @@ class TestApplII:
   def _layout(self):
     self.lo = layout(APPL_II)
   ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 2
-    assert len(self.lo.pipes) == 3
-    assert len(self.lo.applicators) == 0
-  ##
   def test_arg_left_func_right(self):
     arg_box = self.lo.boxes[0]
     func_box = self.lo.boxes[1]
@@ -991,21 +797,12 @@ class TestApplII:
     func_box = self.lo.boxes[1]
     assert arg_box.rect.y == func_box.rect.y
   ##
-  def test_svg_valid_xml(self):
-    svg = render(APPL_II)
-    ET.fromstring(svg)
-  ##
 ##
 
 class TestApplMI:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(APPL_MI)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 2
-    assert len(self.lo.pipes) == 5
-    assert len(self.lo.applicators) == 1
   ##
   def test_arg_left_func_right(self):
     arg_box = self.lo.boxes[0]
@@ -1031,21 +828,12 @@ class TestApplMI:
     func_box = self.lo.boxes[1]
     assert arg_box.rect.y > func_box.rect.y
   ##
-  def test_svg_valid_xml(self):
-    svg = render(APPL_MI)
-    ET.fromstring(svg)
-  ##
 ##
 
 class TestApplIII:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(APPL_III)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 3
-    assert len(self.lo.pipes) == 5
-    assert len(self.lo.applicators) == 0
   ##
   def test_left_to_right(self):
     for i in range(len(self.lo.boxes) - 1):
@@ -1083,21 +871,12 @@ class TestApplIII:
     spacing = single.boxes[0].throat.x + 40.0 - single.boxes[0].ear.x
     assert self.lo.width == single.width + 2 * spacing
   ##
-  def test_svg_valid_xml(self):
-    svg = render(APPL_III)
-    ET.fromstring(svg)
-  ##
 ##
 
 class TestApplLeftIII:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(APPL_LEFT_III)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 3
-    assert len(self.lo.pipes) == 6
-    assert len(self.lo.applicators) == 1
   ##
   def test_has_output(self):
     assert self.lo.output is not None
@@ -1139,10 +918,6 @@ class TestApplLeftIII:
     arg_wire = self.lo.pipes[-1]
     assert func_wire.points[0].y < arg_wire.points[0].y
   ##
-  def test_svg_valid_xml(self):
-    svg = render(APPL_LEFT_III)
-    ET.fromstring(svg)
-  ##
 ##
 
 class TestApplLeftMII:
@@ -1150,18 +925,9 @@ class TestApplLeftMII:
   def _layout(self):
     self.lo = layout(APPL_LEFT_MI_I)
   ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 3
-    assert len(self.lo.pipes) == 8
-    assert len(self.lo.applicators) == 2
-  ##
   def test_has_output(self):
     assert self.lo.output is not None
     assert self.lo.output == self.lo.applicators[-1].out_port
-  ##
-  def test_svg_valid_xml(self):
-    svg = render(APPL_LEFT_MI_I)
-    ET.fromstring(svg)
   ##
 ##
 
@@ -1169,11 +935,6 @@ class TestApplLeftIIII:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(APPL_LEFT_IIII)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 4
-    assert len(self.lo.pipes) == 9
-    assert len(self.lo.applicators) == 2
   ##
   def test_has_output(self):
     assert self.lo.output is not None
@@ -1192,21 +953,12 @@ class TestApplLeftIIII:
     assert arg_wire.points[0].y == arg_wire.points[1].y
     assert arg_wire.points[-1] == self.lo.applicators[-1].arg_port
   ##
-  def test_svg_valid_xml(self):
-    svg = render(APPL_LEFT_IIII)
-    ET.fromstring(svg)
-  ##
 ##
 
 class TestFuncApplII:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(FUNC_APPL_II)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 3
-    assert len(self.lo.pipes) == 4
-    assert len(self.lo.applicators) == 0
   ##
   def test_wrapping_box_surrounds_inner(self):
     wrap = self.lo.boxes[0]
@@ -1245,21 +997,12 @@ class TestFuncApplII:
       ##
     ##
   ##
-  def test_svg_valid_xml(self):
-    svg = render(FUNC_APPL_II)
-    ET.fromstring(svg)
-  ##
 ##
 
 class TestFuncApplLeftIII:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(FUNC_APPL_LEFT_III)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 4
-    assert len(self.lo.pipes) == 7
-    assert len(self.lo.applicators) == 1
   ##
   def test_vertical_padding_one_grid_unit(self):
     g = 20.0
@@ -1284,21 +1027,12 @@ class TestFuncApplLeftIII:
     appl = self.lo.applicators[0]
     assert wrap.throat.x - appl.center.x == g
   ##
-  def test_svg_valid_xml(self):
-    svg = render(FUNC_APPL_LEFT_III)
-    ET.fromstring(svg)
-  ##
 ##
 
 class TestFunc2ApplII:
   @pytest.fixture(autouse=True)
   def _layout(self):
     self.lo = layout(FUNC2_APPL_II)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 4
-    assert len(self.lo.pipes) == 5
-    assert len(self.lo.applicators) == 0
   ##
   def test_two_wrapping_boxes_surround_inner(self):
     outer = self.lo.boxes[0]
@@ -1321,10 +1055,6 @@ class TestFunc2ApplII:
     assert pipe.points[0] == self.lo.boxes[1].throat.offset(10, 0)
     assert pipe.points[-1] == self.lo.boxes[0].throat
   ##
-  def test_svg_valid_xml(self):
-    svg = render(FUNC2_APPL_II)
-    ET.fromstring(svg)
-  ##
 ##
 
 class TestTripleAppl02:
@@ -1332,11 +1062,6 @@ class TestTripleAppl02:
   def _layout(self):
     self.g = 20.0
     self.lo = layout(TRIPLE_APPL_02)
-  ##
-  def test_layout_structure(self):
-    assert len(self.lo.boxes) == 3
-    assert len(self.lo.pipes) == 5
-    assert len(self.lo.applicators) == 1
   ##
   def test_applicator_y_equals_innermost_throat_y(self):
     innermost = self.lo.boxes[2]
@@ -1348,9 +1073,5 @@ class TestTripleAppl02:
     appl = self.lo.applicators[0]
     offset = appl.center.y - innermost.rect.y
     assert offset % self.g == 0
-  ##
-  def test_svg_valid_xml(self):
-    svg = render(TRIPLE_APPL_02)
-    ET.fromstring(svg)
   ##
 ##
