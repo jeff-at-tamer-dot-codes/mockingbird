@@ -249,17 +249,15 @@ def _layout_nested_body(depth: int, body: Expr) -> Layout:
   gap_w = 4
   outer_w = inner_w + 2 * (N - 1) * gap_w
   outer_h = inner_h + 4 * (N - 1)
-  bx = 1
-  by = 1
-  total_w = outer_w + 2 * bx
-  total_h = outer_h + 2 * by
-  inner_top = 1 + 2 * (N - 1)
+  total_w = outer_w + 8
+  total_h = outer_h + 4
+  inner_top = 2 * N
   inner_ear_y = inner_top + inner_h - 2
   boxes: list[LBox] = []
   for i in range(N):
     w_i = inner_w + 2 * (N - 1 - i) * gap_w
-    x_i = bx + i * gap_w
-    top_i = 1 + i * 2
+    x_i = 4 + i * gap_w
+    top_i = 2 + i * 2
     h_i = inner_h + 4 * (N - 1 - i)
     ety = inner_ear_y - 2 * (N - 1 - i)
     ear = Point(x_i, ety)
@@ -329,14 +327,12 @@ def _find_min_vertical_gap(lo_top: Layout, dx_top: float, lo_bot: Layout, dx_bot
 
 def _layout_func_wrapping(depth: int, inner_lo: Layout) -> Layout:
   N = depth
-  margin_x = 1
-  margin_y = 1
   gap_w = 4
   inner_out = _output_point(inner_lo)
   is_throat_output = inner_lo.output is None
   right_pad = 4 if is_throat_output else 3
-  innermost_w = 3 + max(inner_out.x + right_pad, inner_lo.width)
-  innermost_h = inner_lo.height + 2
+  innermost_w = 3 + max(inner_out.x - 3 + right_pad, inner_lo.width - 6)
+  innermost_h = inner_lo.height - 2 + 2
   inner_dx = N * 4
   inner_dy = N * 2
   case_offset = -2 if is_throat_output else 0
@@ -345,8 +341,8 @@ def _layout_func_wrapping(depth: int, inner_lo: Layout) -> Layout:
   for i in range(N):
     box_w = innermost_w + 2 * (N - 1 - i) * gap_w
     box_h = innermost_h + 4 * (N - 1 - i)
-    box_x = margin_x + i * gap_w
-    box_y = 1 + i * 2
+    box_x = 4 + i * gap_w
+    box_y = 2 + i * 2
     throat_y = innermost_throat_y - (N - 1 - i) * 2
     ear = Point(box_x, throat_y)
     throat = Point(box_x + box_w, throat_y)
@@ -380,8 +376,8 @@ def _layout_func_wrapping(depth: int, inner_lo: Layout) -> Layout:
   ##
   outermost_w = innermost_w + 2 * (N - 1) * gap_w
   outermost_h = innermost_h + 4 * (N - 1)
-  total_w = 2 * margin_x + outermost_w
-  total_h = 2 * margin_y + outermost_h
+  total_w = 8 + outermost_w
+  total_h = 4 + outermost_h
   return Layout(
     width=total_w, height=total_h,
     boxes=tuple(boxes) + shifted_inner.boxes,
@@ -410,7 +406,7 @@ def _layout_left_appl(expr: Appl) -> Layout:
   appl = LApplicator.from_center(appl_cx, appl_cy, 1)
   func_wire = LPipe(points=(top_start, Point(appl_cx, top_start.y), appl.func_port))
   arg_wire = LPipe(points=(bot_start, appl.arg_port))
-  width = max(dx_top + lo_top.width, dx_bot + lo_bot.width, appl_cx + 1)
+  width = max(dx_top + lo_top.width, dx_bot + lo_bot.width, appl_cx + 4)
   height = max(lo_top.height, dy_bot + lo_bot.height)
   return Layout(
     width=width, height=height,
@@ -500,13 +496,7 @@ def _layout(expr: Expr) -> Layout:
 
 def layout(expr: Expr, style: Style | None = None) -> Layout:
   s = style or Style()
-  lo = _layout(expr)
-  mx = 3
-  my = 1
-  return Layout(
-    width=lo.width + 2 * mx, height=lo.height + 2 * my,
-    boxes=lo.boxes, pipes=lo.pipes, applicators=lo.applicators, output=lo.output,
-  ).offset(mx, my).scale(s.grid)
+  return _layout(expr).scale(s.grid)
 ##
 
 def _render_boxes(parent: Element, boxes: tuple[LBox, ...], s: Style) -> None:
